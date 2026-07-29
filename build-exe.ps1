@@ -6,8 +6,14 @@ Set-Location $PSScriptRoot
 
 $pyi = ".\.venv\Scripts\pyinstaller.exe"
 if (-not (Test-Path $pyi)) {
-    Write-Host "PyInstaller nao encontrado. Rode primeiro: setup.ps1 -Dev" -ForegroundColor Yellow
-    exit 1
+    # Sem venv local (ex.: CI): usa o pyinstaller do PATH, se houver.
+    $cmd = Get-Command pyinstaller -ErrorAction SilentlyContinue
+    if ($cmd) {
+        $pyi = $cmd.Source
+    } else {
+        Write-Host "PyInstaller nao encontrado. Rode primeiro: setup.ps1 -Dev" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 Write-Host "Limpando builds anteriores..." -ForegroundColor Cyan

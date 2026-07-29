@@ -105,6 +105,18 @@ Com as dependências de dev instaladas (`setup.bat dev`), dê **duplo-clique** e
 Gera `dist\calculo-retencoes.exe` — um único arquivo, com GUI, que **roda em
 qualquer Windows sem Python instalado**.
 
+### Release automático (GitHub Actions)
+
+Ao publicar uma **tag de versão**, o CI compila o `.exe` no Windows e cria uma
+**Release** do GitHub com o executável anexado:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+O executável fica disponível na aba **Releases** do repositório.
+
 ## Rodar os testes
 
 ```powershell
