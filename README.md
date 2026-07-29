@@ -1,5 +1,7 @@
 # Calculadora e Totalizadora de Retenções Federais (NFSe)
 
+[![CI](https://github.com/anderson561/calculoretencoesnafontefederais/actions/workflows/ci.yml/badge.svg)](https://github.com/anderson561/calculoretencoesnafontefederais/actions/workflows/ci.yml)
+
 Aplicação **Windows / Python** que processa lotes de Notas Fiscais de Serviço
 Eletrônica (NFSe), calcula as retenções federais na fonte (**IRRF**, **CRF** =
 PIS/COFINS/CSLL e **INSS**) e gera dois relatórios em Excel:
