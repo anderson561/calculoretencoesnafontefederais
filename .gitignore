@@ -15,9 +15,9 @@ build/
 dist/
 *.spec
 
-# Saídas geradas
+# Saídas geradas (somente na raiz — não afeta o pacote src/retencoes/relatorios/)
 exemplos/saida/
-relatorios/
+/relatorios/
 
 # IDE / SO
 .idea/
