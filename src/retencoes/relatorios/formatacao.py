@@ -34,17 +34,15 @@ def _mascara_cnpj(cnpj: str) -> str:
 def linhas_cabecalho(cab: Cabecalho | None) -> list[tuple[str, str]]:
     """Monta as linhas (rótulo, valor) do cabeçalho do relatório.
 
-    A data de emissão é preenchida com a data atual quando não informada.
-    Linhas sem valor (empresa/CNPJ/competência vazios) são omitidas.
+    O prestador é extraído da NFSe; em planilhas fica em branco (linha omitida).
+    A data de emissão do relatório é preenchida com a data atual quando ausente.
     """
     cab = cab or Cabecalho()
     linhas: list[tuple[str, str]] = []
-    if cab.empresa:
-        linhas.append(("Empresa", cab.empresa))
+    if cab.prestador:
+        linhas.append(("Prestador", cab.prestador))
     if cab.cnpj:
         linhas.append(("CNPJ", _mascara_cnpj(cab.cnpj)))
-    if cab.competencia:
-        linhas.append(("Competência", cab.competencia))
     emissao = cab.data_emissao or date.today().strftime("%d/%m/%Y")
     linhas.append(("Emissão", emissao))
     return linhas

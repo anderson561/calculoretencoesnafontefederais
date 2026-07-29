@@ -1,12 +1,14 @@
-"""Motor de cálculo de retenções federais (RF03).
+"""Motor de cálculo de retenções federais.
 
-Regras aplicadas (todas parametrizáveis via :class:`ParametrosRetencao`):
+Regras de negócio:
 
-- IRRF   = valor_bruto * aliquota_irrf
-- CRF    = valor_bruto * (PIS + COFINS + CSLL)   (isento para PF, se configurado)
-- INSS   = base * aliquota_inss  (base limitada ao teto, se configurado)
-- Dispensa: cada tributo cujo valor calculado seja inferior a
-  ``valor_minimo_retencao`` é zerado.
+- **Só o tomador Pessoa Jurídica (CNPJ) sofre retenção.** Pessoa Física (CPF) e
+  notas sem documento nunca retêm (IRRF = CRF = INSS = 0).
+- IRRF   = valor_bruto * aliquota_irrf  (dispensa decidida pelo acúmulo por data)
+- CRF    = valor_bruto * (PIS + COFINS + CSLL), dispensado se < mínimo
+- INSS   = base * aliquota_inss (base limitada ao teto), dispensado se < mínimo
+- **Acúmulo de IRRF (sempre ativo):** soma o IRRF das notas do mesmo tomador na
+  **mesma data**; se a soma atingir o mínimo (R$ 10,00) retém, senão dispensa.
 """
 from __future__ import annotations
 
@@ -34,31 +36,32 @@ def calcular_retencoes(
     nota: Nota,
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
 ) -> Retencoes:
-    """Calcula IRRF, CRF e INSS para uma nota, aplicando as regras de negócio."""
-    bruto = Decimal(nota.valor_bruto)
+    """Calcula IRRF, CRF e INSS para uma nota, aplicando as regras de negócio.
 
-    # IRRF
+    Somente tomador Pessoa Jurídica (CNPJ) sofre retenção; qualquer outro tipo
+    (CPF ou sem documento) retorna zero. O IRRF é devolvido *bruto* — a dispensa
+    do IRRF é decidida no acúmulo por data (:func:`aplicar_dispensa_irrf_acumulada`).
+    """
+    zero = Decimal("0.00")
+    if nota.tipo_tomador != TipoTomador.CNPJ:
+        return Retencoes(irrf=zero, crf=zero, inss=zero)
+
+    bruto = Decimal(nota.valor_bruto)
+    minimo = parametros.valor_minimo_retencao
+
+    # IRRF bruto (dispensa aplicada depois, no acúmulo por data).
     irrf = _arredondar(bruto * parametros.aliquota_irrf)
 
-    # CRF (PIS/COFINS/CSLL) — isento para Pessoa Física, se configurado.
-    if nota.tipo_tomador == TipoTomador.CPF and parametros.crf_isento_para_pf:
-        crf = Decimal("0.00")
-    else:
-        crf = _arredondar(bruto * parametros.aliquota_crf)
+    # CRF (PIS/COFINS/CSLL), dispensado se abaixo do mínimo.
+    crf = _aplicar_dispensa(_arredondar(bruto * parametros.aliquota_crf), minimo)
 
     # INSS — base limitada ao teto previdenciário, quando configurado (> 0).
     base_inss = bruto
     if parametros.teto_inss > 0 and base_inss > parametros.teto_inss:
         base_inss = parametros.teto_inss
-    inss = _arredondar(base_inss * parametros.aliquota_inss)
+    inss = _aplicar_dispensa(_arredondar(base_inss * parametros.aliquota_inss), minimo)
 
-    # Regra de dispensa por tributo.
-    minimo = parametros.valor_minimo_retencao
-    return Retencoes(
-        irrf=_aplicar_dispensa(irrf, minimo),
-        crf=_aplicar_dispensa(crf, minimo),
-        inss=_aplicar_dispensa(inss, minimo),
-    )
+    return Retencoes(irrf=irrf, crf=crf, inss=inss)
 
 
 def _irrf_bruto(nota: Nota, parametros: ParametrosRetencao) -> Decimal:
@@ -70,29 +73,25 @@ def aplicar_dispensa_irrf_acumulada(
     calculadas: Iterable[NotaCalculada],
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
 ) -> list[NotaCalculada]:
-    """Reavalia a dispensa do IRRF acumulando o imposto por tomador e data.
+    """Aplica a dispensa do IRRF acumulando o imposto por tomador e **mesma data**.
 
-    Só acumula notas do mesmo tomador identificado (CNPJ/CPF) emitidas na **mesma
-    data** (dia/mês/ano). Para cada par (tomador, data), soma o IRRF *bruto*; se o
-    total ficar abaixo do mínimo, zera o IRRF de todas; caso contrário, mantém o
-    IRRF bruto de cada nota. Notas sem documento ou **sem data de emissão** não
-    acumulam e preservam a dispensa nota a nota já calculada.
+    Regra (sempre ativa): a primeira avaliação é a data — só somam notas do mesmo
+    tomador CNPJ emitidas no mesmo dia. Soma o IRRF bruto dessas notas; se o total
+    atingir o mínimo (R$ 10,00) mantém o IRRF de cada uma, senão zera todas.
+    Notas sem data de emissão são avaliadas isoladamente (uma a uma).
 
+    Só tomador CNPJ é considerado (CPF e sem documento já têm IRRF = 0).
     Modifica os objetos in place e devolve a mesma lista.
     """
     calculadas = list(calculadas)
-    if not parametros.irrf_dispensa_por_acumulo:
-        return calculadas
-
     minimo = parametros.valor_minimo_retencao
     grupos: dict[tuple, list[NotaCalculada]] = defaultdict(list)
-    for nc in calculadas:
-        if nc.nota.tipo_tomador == TipoTomador.SEM_DOCUMENTO:
-            continue  # sem beneficiário identificado: não acumula
-        if nc.nota.data_emissao is None:
-            continue  # sem data: não há como aferir "mesmo dia" -> nota a nota
-        chave = (nc.nota.tipo_tomador, nc.nota.documento_tomador, nc.nota.data_emissao)
-        grupos[chave].append(nc)
+    for idx, nc in enumerate(calculadas):
+        if nc.nota.tipo_tomador != TipoTomador.CNPJ:
+            continue  # PF e sem documento não retêm
+        # 1ª avaliação = mesma data. Sem data -> grupo próprio (não soma com outras).
+        data_chave = nc.nota.data_emissao if nc.nota.data_emissao is not None else ("__sem_data__", idx)
+        grupos[(nc.nota.documento_tomador, data_chave)].append(nc)
 
     for grupo in grupos.values():
         acumulado = sum((_irrf_bruto(nc.nota, parametros) for nc in grupo), Decimal("0"))

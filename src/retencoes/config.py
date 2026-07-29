@@ -38,16 +38,8 @@ class ParametrosRetencao:
     teto_inss: Decimal = field(default_factory=lambda: _d("0"))
 
     # Regra de dispensa: retenção inferior a este valor é dispensada/zerada.
-    # (RF03 — legislação federal: dispensa de IRRF igual ou inferior a R$ 10,00)
+    # (legislação federal: dispensa de IRRF igual ou inferior a R$ 10,00)
     valor_minimo_retencao: Decimal = field(default_factory=lambda: _d("10.00"))
-
-    # Serviços a Pessoa Física geralmente não sofrem retenção de CRF na fonte.
-    crf_isento_para_pf: bool = True
-
-    # Dispensa de IRRF por acúmulo: soma o IRRF por tomador no período antes de
-    # aplicar o mínimo (em vez de dispensar nota a nota). Notas sem documento
-    # não acumulam (não há beneficiário identificado).
-    irrf_dispensa_por_acumulo: bool = True
 
     @property
     def aliquota_crf(self) -> Decimal:

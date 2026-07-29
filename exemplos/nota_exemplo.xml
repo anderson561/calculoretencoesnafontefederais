@@ -1,11 +1,4 @@
-from pathlib import Path
-from datetime import date
-
-from retencoes.ingestao import ler_xml
-from retencoes.models import TipoTomador
-
-# Amostra simplificada no estilo ABRASF (com namespace), com Prestador e Tomador.
-XML_ABRASF = """<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ConsultarNfseResposta xmlns="http://www.abrasf.org.br/nfse.xsd">
   <ListaNfse>
     <CompNfse>
@@ -34,23 +27,3 @@ XML_ABRASF = """<?xml version="1.0" encoding="UTF-8"?>
     </CompNfse>
   </ListaNfse>
 </ConsultarNfseResposta>
-"""
-
-
-def test_ler_xml_abrasf(tmp_path: Path):
-    arq = tmp_path / "nota.xml"
-    arq.write_text(XML_ABRASF, encoding="utf-8")
-
-    notas = ler_xml(arq)
-    assert len(notas) == 1
-    nota = notas[0]
-    # Tomador
-    assert nota.tipo_tomador == TipoTomador.CNPJ
-    assert nota.documento_tomador == "11222333000181"
-    assert nota.nome_tomador == "Empresa Alpha Ltda"
-    assert str(nota.valor_bruto) == "10000.00"
-    assert nota.numero == "2024001"
-    assert nota.data_emissao == date(2026, 7, 15)
-    # Prestador extraído do XML
-    assert nota.prestador_nome == "Norte Contábil Ltda"
-    assert nota.prestador_cnpj == "45723174000110"

@@ -68,6 +68,14 @@ def _achar_bloco_tomador(nota: etree._Element) -> etree._Element:
     return nota  # fallback: procura na nota inteira
 
 
+def _achar_bloco_prestador(nota: etree._Element) -> etree._Element | None:
+    """Retorna o subelemento do prestador (razão social + CNPJ), se houver."""
+    for filho in nota.iter():
+        if "prestador" in _local(filho.tag):
+            return filho
+    return None
+
+
 def _extrair_documento(bloco: etree._Element) -> str | None:
     """Extrai CNPJ/CPF do bloco do tomador, cobrindo variações de tag."""
     cnpj = _primeiro_texto(bloco, _TAGS_CNPJ)
@@ -104,6 +112,10 @@ def ler_xml(caminho: str | Path) -> list[Nota]:
         documento = _extrair_documento(bloco_tomador)
         tipo, doc = classificar_tomador(documento)
 
+        bloco_prestador = _achar_bloco_prestador(no)
+        prestador_nome = _primeiro_texto(bloco_prestador, _TAGS_NOME) if bloco_prestador is not None else None
+        prestador_doc = _extrair_documento(bloco_prestador) if bloco_prestador is not None else None
+
         notas.append(
             Nota(
                 numero=_primeiro_texto(no, _TAGS_NUMERO) or str(i),
@@ -112,7 +124,17 @@ def ler_xml(caminho: str | Path) -> list[Nota]:
                 nome_tomador=_primeiro_texto(bloco_tomador, _TAGS_NOME),
                 valor_bruto=_para_decimal(_primeiro_texto(no, _TAGS_VALOR)),
                 data_emissao=parse_data(_primeiro_texto(no, _TAGS_DATA)),
+                prestador_nome=prestador_nome,
+                prestador_cnpj=(apenas_digitos_doc(prestador_doc)),
                 origem=caminho.name,
             )
         )
     return notas
+
+
+def apenas_digitos_doc(doc: str | None) -> str | None:
+    """Mantém só os dígitos de um documento (ou None)."""
+    if not doc:
+        return None
+    d = "".join(c for c in doc if c.isdigit())
+    return d or None

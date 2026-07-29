@@ -22,5 +22,7 @@ def test_total_geral_soma_os_tres_blocos():
 
     assert total.qtd_notas == 4
     assert total.valor_bruto == Decimal("20000.00")
-    # IRRF 1,5% sobre 20.000 = 300 (todas as notas acima do mínimo de R$10)
-    assert total.total_irrf == Decimal("300.00")
+    # Só as notas CNPJ retêm: IRRF 1,5% de (10.000 + 5.000) = 225,00.
+    # CPF e sem documento não retêm.
+    assert total.total_irrf == Decimal("225.00")
+    assert total.total_inss == Decimal("1650.00")  # 11% de 15.000 (só CNPJ)

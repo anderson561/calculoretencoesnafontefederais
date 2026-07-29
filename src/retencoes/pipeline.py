@@ -57,18 +57,31 @@ def exportar(
     return gerados
 
 
+def montar_cabecalho(notas: list[Nota]) -> Cabecalho:
+    """Monta o cabeçalho a partir do prestador extraído das notas (XML).
+
+    Usa o primeiro prestador encontrado; em planilhas (sem prestador) devolve
+    um cabeçalho em branco (só a data de emissão será exibida).
+    """
+    for n in notas:
+        if n.prestador_nome or n.prestador_cnpj:
+            return Cabecalho(prestador=n.prestador_nome or "", cnpj=n.prestador_cnpj or "")
+    return Cabecalho()
+
+
 def processar(
     entrada: str | Path,
     saida: str | Path,
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
     formato: str = "auto",
-    cabecalho: Cabecalho | None = None,
 ) -> tuple[list[Path], int]:
     """Lê a entrada, calcula as retenções e exporta o(s) relatório(s).
 
+    O cabeçalho (prestador) é montado automaticamente a partir das notas.
     Retorna ``(lista_de_arquivos_gerados, quantidade_de_notas)``.
     """
     notas = ler_entrada(entrada)
     calculadas = calcular_notas(notas, parametros)
+    cabecalho = montar_cabecalho(notas)
     gerados = exportar(calculadas, saida, formato, cabecalho)
     return gerados, len(calculadas)

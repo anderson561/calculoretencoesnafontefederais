@@ -20,14 +20,10 @@ from tkinter import filedialog, messagebox, ttk
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from retencoes.config import ParametrosRetencao  # type: ignore
-    from retencoes.models import Cabecalho  # type: ignore
     from retencoes.pipeline import processar  # type: ignore
-    from retencoes.sanitizacao import cnpj_valido  # type: ignore
 else:  # pragma: no cover
     from .retencoes.config import ParametrosRetencao
-    from .retencoes.models import Cabecalho
     from .retencoes.pipeline import processar
-    from .retencoes.sanitizacao import cnpj_valido
 
 TITULO = "Calculadora de Retenções Federais (NFSe)"
 
@@ -48,12 +44,7 @@ class App(ttk.Frame):
         self.var_inss = tk.StringVar(value=str(padrao.aliquota_inss))
         self.var_minimo = tk.StringVar(value=str(padrao.valor_minimo_retencao))
         self.var_teto = tk.StringVar(value=str(padrao.teto_inss))
-        self.var_crf_pf = tk.BooleanVar(value=not padrao.crf_isento_para_pf)
-        self.var_irrf_acumulo = tk.BooleanVar(value=padrao.irrf_dispensa_por_acumulo)
         self.var_formato = tk.StringVar(value="excel")
-        self.var_empresa = tk.StringVar()
-        self.var_cnpj = tk.StringVar()
-        self.var_competencia = tk.StringVar()
 
         self._montar_widgets()
 
@@ -84,20 +75,6 @@ class App(ttk.Frame):
             row=r, column=2, sticky="e"
         )
 
-        # Identificação (cabeçalho do relatório)
-        r += 1
-        ident = ttk.LabelFrame(self, text="Identificação (cabeçalho do relatório)", padding=10)
-        ident.grid(row=r, column=0, columnspan=3, sticky="ew", pady=(14, 6))
-        ident.columnconfigure(1, weight=1)
-        ttk.Label(ident, text="Empresa").grid(row=0, column=0, sticky="w", padx=4, pady=3)
-        ttk.Entry(ident, textvariable=self.var_empresa).grid(
-            row=0, column=1, columnspan=3, sticky="ew"
-        )
-        ttk.Label(ident, text="CNPJ").grid(row=1, column=0, sticky="w", padx=4, pady=3)
-        ttk.Entry(ident, textvariable=self.var_cnpj, width=22).grid(row=1, column=1, sticky="w")
-        ttk.Label(ident, text="Competência (mm/aaaa)").grid(row=1, column=2, sticky="w", padx=4)
-        ttk.Entry(ident, textvariable=self.var_competencia, width=12).grid(row=1, column=3, sticky="w")
-
         # Parâmetros
         r += 1
         params = ttk.LabelFrame(self, text="Parâmetros de cálculo", padding=10)
@@ -115,13 +92,11 @@ class App(ttk.Frame):
         ttk.Label(params, text="Teto INSS (0 = sem teto)").grid(row=1, column=2, sticky="w", padx=4)
         ttk.Entry(params, textvariable=self.var_teto, width=12).grid(row=1, column=3, sticky="w")
 
-        ttk.Checkbutton(
-            params, text="Aplicar CRF também para Pessoa Física", variable=self.var_crf_pf
+        ttk.Label(
+            params,
+            text="Só tomador CNPJ sofre retenção. IRRF acumulado por dia.",
+            foreground="#666666",
         ).grid(row=2, column=0, columnspan=4, sticky="w", pady=(6, 0))
-        ttk.Checkbutton(
-            params, text="Dispensa de IRRF por acúmulo (soma por tomador)",
-            variable=self.var_irrf_acumulo,
-        ).grid(row=3, column=0, columnspan=4, sticky="w")
 
         # Formato de saída
         r += 1
@@ -183,8 +158,6 @@ class App(ttk.Frame):
             aliquota_inss=dec(self.var_inss, "INSS"),
             valor_minimo_retencao=dec(self.var_minimo, "Mínimo"),
             teto_inss=dec(self.var_teto, "Teto INSS"),
-            crf_isento_para_pf=not self.var_crf_pf.get(),
-            irrf_dispensa_por_acumulo=self.var_irrf_acumulo.get(),
         )
 
     def _ao_gerar(self) -> None:
@@ -205,36 +178,21 @@ class App(ttk.Frame):
             messagebox.showerror(TITULO, str(exc))
             return
 
-        # Valida o CNPJ do cabeçalho (opcional): se preenchido e inválido, confirma.
-        cnpj = self.var_cnpj.get().strip()
-        if cnpj and not cnpj_valido(cnpj):
-            if not messagebox.askyesno(
-                TITULO,
-                f"O CNPJ do cabeçalho parece inválido:\n{cnpj}\n\nGerar o relatório mesmo assim?",
-            ):
-                return
-
         # Processa em thread para não congelar a interface.
         formato = self.var_formato.get()
-        cabecalho = Cabecalho(
-            empresa=self.var_empresa.get().strip(),
-            cnpj=cnpj,
-            competencia=self.var_competencia.get().strip(),
-        )
         self.btn_gerar.config(state="disabled")
         self.var_status.set("Processando…")
         threading.Thread(
             target=self._processar,
-            args=(entrada, saida, parametros, formato, cabecalho),
+            args=(entrada, saida, parametros, formato),
             daemon=True,
         ).start()
 
     def _processar(
-        self, entrada: str, saida: str, parametros: ParametrosRetencao,
-        formato: str, cabecalho: Cabecalho,
+        self, entrada: str, saida: str, parametros: ParametrosRetencao, formato: str,
     ) -> None:
         try:
-            gerados, qtd = processar(entrada, saida, parametros, formato, cabecalho)
+            gerados, qtd = processar(entrada, saida, parametros, formato)
         except Exception as exc:  # noqa: BLE001 — feedback amigável ao usuário
             self.master.after(0, self._falhou, exc)
         else:

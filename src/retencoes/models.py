@@ -34,8 +34,12 @@ class Nota:
     nome_tomador: Optional[str]
     valor_bruto: Decimal
 
-    # Data de emissão da nota (usada para acumular o IRRF por competência).
+    # Data de emissão da nota (usada para acumular o IRRF por data).
     data_emissao: Optional[date] = None
+
+    # Prestador do serviço (extraído do XML da NFSe; ausente em planilhas).
+    prestador_nome: Optional[str] = None
+    prestador_cnpj: Optional[str] = None
 
     # Origem do registro, útil para rastreabilidade e depuração.
     origem: Optional[str] = None
@@ -71,12 +75,12 @@ class NotaCalculada:
 
 @dataclass
 class Cabecalho:
-    """Dados de identificação exibidos no topo dos relatórios.
+    """Identificação do prestador exibida no topo dos relatórios.
 
+    O prestador é extraído da NFSe (XML); em planilhas fica em branco.
     ``data_emissao`` vazia é preenchida com a data atual no momento da exportação.
     """
 
-    empresa: str = ""
+    prestador: str = ""
     cnpj: str = ""
-    competencia: str = ""  # ex.: "07/2026"
     data_emissao: str = ""  # dd/mm/aaaa

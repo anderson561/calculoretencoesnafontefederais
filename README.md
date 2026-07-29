@@ -82,9 +82,9 @@ pela extensão de `--saida`):
 - Uma **pasta** contendo vários arquivos — todos são lidos e consolidados.
 
 Colunas da planilha padrão (nomes flexíveis, com ou sem acento/maiúsculas):
-`numero`, `documento` (CNPJ/CPF), `nome` (opcional), `data` (emissão, opcional)
-e `valor`. A `data` aceita formatos BR (`15/07/2026`), ISO (`2026-07-15`) ou
-competência (`07/2026`), e é usada no acúmulo de IRRF por competência.
+`numero`, `documento` (CNPJ/CPF), `nome` (opcional), `data` (emissão) e `valor`.
+A `data` aceita formatos BR (`15/07/2026`) ou ISO (`2026-07-15`) e é usada no
+**acúmulo de IRRF por dia**.
 
 ## Parâmetros do cálculo
 
@@ -94,8 +94,9 @@ competência (`07/2026`), e é usada no acúmulo de IRRF por competência.
 | `--inss` | INSS (fração) | Alíquota de INSS | `0.11` |
 | `--minimo` | Mínimo p/ retenção | Dispensa abaixo desse valor | `10.00` |
 | `--teto-inss` | Teto INSS | Teto da base do INSS (0 = sem teto) | `0` |
-| `--crf-para-pf` | checkbox | Aplica CRF também para Pessoa Física | desligado (isento) |
-| `--irrf-sem-acumulo` | checkbox | Desliga o acúmulo de IRRF por tomador (dispensa nota a nota) | acúmulo ligado |
+
+> A **identificação do prestador** não é digitada: é **extraída do XML** da NFSe
+> e exibida no cabeçalho. Em planilhas (sem prestador), o cabeçalho fica em branco.
 
 ## Gerar o executável (.exe) — RNF01
 
@@ -125,14 +126,14 @@ O executável fica disponível na aba **Releases** do repositório.
 
 ## Regras de negócio implementadas
 
-- **RF02 — Classificação:** documento sanitizado (só dígitos) e validado pelos
-  dígitos verificadores → `CNPJ` (14), `CPF` (11) ou `Sem documento`.
-- **RF03 — Cálculo:** IRRF, CRF (PIS 0,65% + COFINS 3% + CSLL 1% = 4,65%) e INSS.
-  - CRF **isento para Pessoa Física** por padrão (configurável).
-  - **Dispensa:** cada tributo com valor abaixo do mínimo (R$ 10,00) é zerado.
-  - **Dispensa de IRRF por acúmulo** (padrão): o IRRF é somado **por tomador e
-    data de emissão (mesmo dia/mês/ano)** antes de aplicar o mínimo; se o total
-    do dia ficar abaixo de R$ 10,00, dispensa todas as notas daquele tomador
-    naquela data. Notas de datas diferentes **não** somam. Notas sem documento
-    ou sem data não acumulam (dispensa nota a nota).
-  - INSS respeita o **teto previdenciário** quando configurado.
+- **Classificação:** documento sanitizado (só dígitos) e validado pelos dígitos
+  verificadores → `CNPJ` (14), `CPF` (11) ou `Sem documento`.
+- **Somente tomador Pessoa Jurídica (CNPJ) sofre retenção.** Pessoa Física (CPF)
+  e notas sem documento **nunca retêm** (IRRF = CRF = INSS = 0).
+- **Cálculo (tomador CNPJ):** IRRF, CRF (PIS 0,65% + COFINS 3% + CSLL 1% = 4,65%) e INSS.
+  - **CRF/INSS:** dispensados quando abaixo do mínimo (R$ 10,00). INSS respeita o
+    **teto previdenciário** quando configurado.
+  - **IRRF — acúmulo por data (sempre ativo):** a 1ª avaliação é a **data**; somam
+    apenas notas do mesmo CNPJ emitidas no **mesmo dia**. Se a soma do dia atingir
+    R$ 10,00, retém cada nota; senão, dispensa. Datas diferentes não somam; notas
+    sem data são avaliadas isoladamente.
