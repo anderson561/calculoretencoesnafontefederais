@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Ambiente
+.env
+
+# PyInstaller / build
+build/
+dist/
+*.spec
+
+# Saídas geradas
+exemplos/saida/
+relatorios/
+
+# IDE / SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Workspace do agente / configs locais
+.agent/
+.agents/
+.claude/

@@ -1,0 +1,7 @@
+# Dependências de execução (runtime)
+pandas==2.2.3
+openpyxl==3.1.5
+lxml==5.3.0
+reportlab==4.2.5
+# Observação: a interface gráfica usa Tkinter, que já faz parte da
+# biblioteca padrão do Python (não precisa ser instalado via pip).

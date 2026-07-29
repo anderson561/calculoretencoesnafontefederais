@@ -1,0 +1,6 @@
+# Dependências de desenvolvimento (testes e empacotamento).
+# Inclui também as de runtime.
+-r requirements.txt
+
+pytest==8.3.4
+pyinstaller==6.11.1
