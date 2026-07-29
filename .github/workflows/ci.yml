@@ -31,4 +31,15 @@ jobs:
           pip install -r requirements.txt pytest
 
       - name: Rodar testes
-        run: pytest -q
+        shell: bash
+        run: |
+          set +e
+          pytest -rA --tb=long -p no:cacheprovider > test_output.txt 2>&1
+          code=$?
+          {
+            echo "### pytest — ${{ matrix.os }} (exit $code)"
+            echo '```'
+            cat test_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
