@@ -9,9 +9,10 @@ CNPJ = "11222333000181"
 DIA = date(2026, 7, 10)
 
 
-def _nota(numero, valor, doc=CNPJ, tipo=TipoTomador.CNPJ, data=DIA):
+def _nota(numero, valor, irrf, doc=CNPJ, tipo=TipoTomador.CNPJ, data=DIA):
     return Nota(numero=numero, documento_tomador=doc, tipo_tomador=tipo,
-               nome_tomador="Cliente", valor_bruto=Decimal(valor), data_emissao=data)
+               nome_tomador="Cliente", valor_bruto=Decimal(valor),
+               irrf_informado=Decimal(irrf) if irrf is not None else None, data_emissao=data)
 
 
 def _irrf(notas):
@@ -19,9 +20,8 @@ def _irrf(notas):
 
 
 def test_mesmo_dia_soma_e_retem():
-    # 5,00 + 7,00 no mesmo dia = 12,00 (>= 10) -> retém ambas.
-    r = _irrf([_nota("1", "333.34"), _nota("2", "466.67")])
-    # 333,34*1,5%=5,00 ; 466,67*1,5%=7,00
+    # IRRF informado 5,00 + 7,00 no mesmo dia = 12,00 (>= 10) -> retém ambas.
+    r = _irrf([_nota("1", "333.34", "5.00"), _nota("2", "466.67", "7.00")])
     assert r["1"] == Decimal("5.00")
     assert r["2"] == Decimal("7.00")
 
@@ -29,8 +29,8 @@ def test_mesmo_dia_soma_e_retem():
 def test_datas_diferentes_nao_somam():
     # 5,00 e 4,00 em dias diferentes -> cada um < 10 -> dispensa (0).
     r = _irrf([
-        _nota("1", "333.34", data=date(2026, 7, 10)),
-        _nota("2", "266.67", data=date(2026, 7, 11)),  # 4,00
+        _nota("1", "333.34", "5.00", data=date(2026, 7, 10)),
+        _nota("2", "266.67", "4.00", data=date(2026, 7, 11)),
     ])
     assert r["1"] == Decimal("0.00")
     assert r["2"] == Decimal("0.00")
@@ -38,9 +38,9 @@ def test_datas_diferentes_nao_somam():
 
 def test_mesmo_dia_acumula_outro_dia_nao():
     r = _irrf([
-        _nota("1", "400.00", data=date(2026, 7, 10)),  # 6,00
-        _nota("2", "400.00", data=date(2026, 7, 10)),  # 6,00 -> soma 12 retém
-        _nota("3", "400.00", data=date(2026, 7, 11)),  # 6,00 sozinho -> dispensa
+        _nota("1", "400.00", "6.00", data=date(2026, 7, 10)),
+        _nota("2", "400.00", "6.00", data=date(2026, 7, 10)),  # soma 12 -> retém
+        _nota("3", "400.00", "6.00", data=date(2026, 7, 11)),  # sozinho -> dispensa
     ])
     assert r["1"] == Decimal("6.00")
     assert r["2"] == Decimal("6.00")
@@ -48,17 +48,29 @@ def test_mesmo_dia_acumula_outro_dia_nao():
 
 
 def test_nota_individual_acima_do_minimo_mantem():
-    r = _irrf([_nota("1", "10000.00")])  # 150,00
+    r = _irrf([_nota("1", "10000.00", "150.00")])
     assert r["1"] == Decimal("150.00")
 
 
 def test_sem_data_avalia_isolada():
     # Sem data: cada nota avaliada sozinha; 6,00 < 10 -> dispensa.
-    r = _irrf([_nota("1", "400.00", data=None), _nota("2", "400.00", data=None)])
+    r = _irrf([_nota("1", "400.00", "6.00", data=None), _nota("2", "400.00", "6.00", data=None)])
     assert r["1"] == Decimal("0.00")
     assert r["2"] == Decimal("0.00")
 
 
 def test_pessoa_fisica_nunca_retem_irrf():
-    r = _irrf([_nota("1", "10000.00", doc="11144477735", tipo=TipoTomador.CPF)])
+    r = _irrf([_nota("1", "10000.00", "150.00", doc="11144477735", tipo=TipoTomador.CPF)])
     assert r["1"] == Decimal("0.00")
+
+
+def test_irrf_nao_informado_fica_none_mesmo_com_grupo_retendo():
+    # Nota sem IRRF informado não entra na soma e não recebe valor calculado.
+    r = _irrf([
+        _nota("1", "400.00", "6.00", data=date(2026, 7, 10)),
+        _nota("2", "400.00", "6.00", data=date(2026, 7, 10)),
+        _nota("3", "400.00", None, data=date(2026, 7, 10)),
+    ])
+    assert r["1"] == Decimal("6.00")
+    assert r["2"] == Decimal("6.00")
+    assert r["3"] is None

@@ -40,10 +40,7 @@ class App(ttk.Frame):
         padrao = ParametrosRetencao()
         self.var_entrada = tk.StringVar()
         self.var_saida = tk.StringVar(value=str(Path("saida") / "retencoes.xlsx"))
-        self.var_irrf = tk.StringVar(value=str(padrao.aliquota_irrf))
-        self.var_inss = tk.StringVar(value=str(padrao.aliquota_inss))
         self.var_minimo = tk.StringVar(value=str(padrao.valor_minimo_retencao))
-        self.var_teto = tk.StringVar(value=str(padrao.teto_inss))
         self.var_formato = tk.StringVar(value="excel")
 
         self._montar_widgets()
@@ -80,23 +77,20 @@ class App(ttk.Frame):
         params = ttk.LabelFrame(self, text="Parâmetros de cálculo", padding=10)
         params.grid(row=r, column=0, columnspan=3, sticky="ew", pady=(14, 6))
         params.columnconfigure(1, weight=1)
-        params.columnconfigure(3, weight=1)
 
-        ttk.Label(params, text="IRRF (fração)").grid(row=0, column=0, sticky="w", padx=4, pady=3)
-        ttk.Entry(params, textvariable=self.var_irrf, width=12).grid(row=0, column=1, sticky="w")
-        ttk.Label(params, text="INSS (fração)").grid(row=0, column=2, sticky="w", padx=4)
-        ttk.Entry(params, textvariable=self.var_inss, width=12).grid(row=0, column=3, sticky="w")
-
-        ttk.Label(params, text="Mínimo p/ retenção (R$)").grid(row=1, column=0, sticky="w", padx=4, pady=3)
-        ttk.Entry(params, textvariable=self.var_minimo, width=12).grid(row=1, column=1, sticky="w")
-        ttk.Label(params, text="Teto INSS (0 = sem teto)").grid(row=1, column=2, sticky="w", padx=4)
-        ttk.Entry(params, textvariable=self.var_teto, width=12).grid(row=1, column=3, sticky="w")
+        ttk.Label(params, text="Mínimo p/ retenção (R$)").grid(row=0, column=0, sticky="w", padx=4, pady=3)
+        ttk.Entry(params, textvariable=self.var_minimo, width=12).grid(row=0, column=1, sticky="w")
 
         ttk.Label(
             params,
-            text="Só tomador CNPJ sofre retenção. IRRF acumulado por dia.",
+            text=(
+                "Só tomador CNPJ sofre retenção. Só soma imposto já informado no "
+                "XML/planilha (não aplica alíquota). IRRF acumulado por dia."
+            ),
             foreground="#666666",
-        ).grid(row=2, column=0, columnspan=4, sticky="w", pady=(6, 0))
+            wraplength=420,
+            justify="left",
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
         # Formato de saída
         r += 1
@@ -154,10 +148,7 @@ class App(ttk.Frame):
                 raise ValueError(f"Valor inválido em '{nome}': {var.get()!r}") from exc
 
         return ParametrosRetencao(
-            aliquota_irrf=dec(self.var_irrf, "IRRF"),
-            aliquota_inss=dec(self.var_inss, "INSS"),
             valor_minimo_retencao=dec(self.var_minimo, "Mínimo"),
-            teto_inss=dec(self.var_teto, "Teto INSS"),
         )
 
     def _ao_gerar(self) -> None:

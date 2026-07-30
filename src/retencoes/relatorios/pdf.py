@@ -1,4 +1,4 @@
-"""Exportação dos relatórios 1 e 2 para PDF (RF04/RF05) usando reportlab."""
+"""Exportação dos relatórios 1, 2 e 3 para PDF (RF04/RF05) usando reportlab."""
 from __future__ import annotations
 
 from decimal import Decimal
@@ -17,7 +17,7 @@ from reportlab.platypus import (
 )
 
 from ..models import Cabecalho, NotaCalculada
-from .agregacao import agregar_analitico, agregar_sintetico
+from .agregacao import agregar_analitico, agregar_sintetico, agregar_trimestral
 from .formatacao import linhas_cabecalho, mascarar_documento, moeda_br
 
 _AZUL = colors.HexColor("#1F4E78")
@@ -76,20 +76,35 @@ _LARGURAS_ANALITICO = [30 * mm, 24 * mm, 24 * mm, 42 * mm, 10 * mm,
 
 
 def _tabela_analitico(linhas) -> Table:
+    """Uma linha por nota, com subtotal por tomador quando há mais de uma."""
     cab = ["Documento", "Número NF", "Data", "Nome / Razão Social", "Qtd.",
            "Valor Bruto", "IRRF", "CRF", "INSS"]
     dados = [cab]
+    linhas_subtotal: list[int] = []
     if not linhas:
         dados.append(["(sem registros)"] + [""] * 8)
     else:
         for la in linhas:
-            dados.append([
-                mascarar_documento(la.documento, la.tipo), la.numeros_fmt, la.datas_fmt,
-                la.nome or "-", str(la.qtd_notas), moeda_br(la.valor_bruto),
-                moeda_br(la.total_irrf), moeda_br(la.total_crf), moeda_br(la.total_inss),
-            ])
+            doc_fmt = mascarar_documento(la.documento, la.tipo)
+            for item in la.itens_ordenados:
+                dados.append([
+                    doc_fmt, item.numero, item.data_fmt, la.nome or "-", "1",
+                    moeda_br(item.valor_bruto), moeda_br(item.irrf),
+                    moeda_br(item.crf), moeda_br(item.inss),
+                ])
+            if la.qtd_notas > 1:
+                dados.append([
+                    "", "", "", f"Subtotal — {la.nome or doc_fmt}", str(la.qtd_notas),
+                    moeda_br(la.valor_bruto), moeda_br(la.total_irrf),
+                    moeda_br(la.total_crf), moeda_br(la.total_inss),
+                ])
+                linhas_subtotal.append(len(dados) - 1)
     t = Table(dados, colWidths=_LARGURAS_ANALITICO, repeatRows=1)
-    t.setStyle(_estilo_tabela(len(dados), com_total=False, col_direita=4))
+    estilo = _estilo_tabela(len(dados), com_total=False, col_direita=4)
+    for linha_idx in linhas_subtotal:
+        estilo.add("BACKGROUND", (0, linha_idx), (-1, linha_idx), _CINZA_CLARO)
+        estilo.add("FONTNAME", (0, linha_idx), (-1, linha_idx), "Helvetica-Oblique")
+    t.setStyle(estilo)
     return t
 
 
@@ -113,10 +128,37 @@ def _tabela_total_analitico(total) -> Table:
     return t
 
 
+def _tabela_trimestral(notas: list[NotaCalculada]) -> Table:
+    cab = ["Trimestre", "Qtd.", "Valor Bruto", "Total IRRF", "Total CRF", "Total INSS"]
+    dados = [cab]
+    tot = {"qtd": 0, "b": Decimal("0"), "i": Decimal("0"), "c": Decimal("0"), "n": Decimal("0")}
+    linhas = agregar_trimestral(notas)
+    if not linhas:
+        dados.append(["(sem registros)"] + [""] * 5)
+    for lt in linhas:
+        dados.append([
+            lt.rotulo, str(lt.qtd_notas), moeda_br(lt.valor_bruto),
+            moeda_br(lt.total_irrf), moeda_br(lt.total_crf), moeda_br(lt.total_inss),
+        ])
+        tot["qtd"] += lt.qtd_notas
+        tot["b"] += lt.valor_bruto
+        tot["i"] += lt.total_irrf
+        tot["c"] += lt.total_crf
+        tot["n"] += lt.total_inss
+    dados.append([
+        "TOTAL GERAL", str(tot["qtd"]), moeda_br(tot["b"]),
+        moeda_br(tot["i"]), moeda_br(tot["c"]), moeda_br(tot["n"]),
+    ])
+    larguras = [55 * mm, 18 * mm, 35 * mm, 30 * mm, 30 * mm, 30 * mm]
+    t = Table(dados, colWidths=larguras, repeatRows=1)
+    t.setStyle(_estilo_tabela(len(dados), com_total=True))
+    return t
+
+
 def exportar_pdf(
     notas: list[NotaCalculada], caminho: str | Path, cabecalho: Cabecalho | None = None
 ) -> Path:
-    """Gera um PDF (paisagem A4) com os relatórios sintético e analítico."""
+    """Gera um PDF (paisagem A4) com os relatórios sintético, analítico e trimestral."""
     caminho = Path(caminho)
     caminho.parent.mkdir(parents=True, exist_ok=True)
 
@@ -160,6 +202,13 @@ def exportar_pdf(
         elementos.append(Spacer(1, 5 * mm))
 
     elementos.append(_tabela_total_analitico(rel.total_geral()))
+
+    elementos += [
+        Spacer(1, 8 * mm),
+        Paragraph("Relatório 3 — Totalizador Trimestral", h2),
+        Spacer(1, 2 * mm),
+        _tabela_trimestral(notas),
+    ]
 
     doc.build(elementos)
     return caminho

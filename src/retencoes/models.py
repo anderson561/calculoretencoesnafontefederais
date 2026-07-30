@@ -41,6 +41,13 @@ class Nota:
     prestador_nome: Optional[str] = None
     prestador_cnpj: Optional[str] = None
 
+    # Valores de retenção JÁ INFORMADOS na origem (XML ou coluna de planilha).
+    # ``None`` = não informado (não deve ser calculado); Decimal, inclusive
+    # "0.00", = informado explicitamente.
+    irrf_informado: Optional[Decimal] = None
+    crf_informado: Optional[Decimal] = None
+    inss_informado: Optional[Decimal] = None
+
     # Origem do registro, útil para rastreabilidade e depuração.
     origem: Optional[str] = None
 
@@ -54,15 +61,20 @@ class Nota:
 
 @dataclass
 class Retencoes:
-    """Valores de retenção calculados para uma nota."""
+    """Valores de retenção de uma nota.
 
-    irrf: Decimal
-    crf: Decimal
-    inss: Decimal
+    Cada campo é ``None`` quando o imposto não foi informado na origem (XML ou
+    planilha) — nesse caso nenhum cálculo é feito. Um valor ``Decimal`` (mesmo
+    "0.00") indica que o imposto foi informado e, se zero, dispensado.
+    """
+
+    irrf: Optional[Decimal]
+    crf: Optional[Decimal]
+    inss: Optional[Decimal]
 
     @property
     def total(self) -> Decimal:
-        return self.irrf + self.crf + self.inss
+        return (self.irrf or Decimal("0.00")) + (self.crf or Decimal("0.00")) + (self.inss or Decimal("0.00"))
 
 
 @dataclass

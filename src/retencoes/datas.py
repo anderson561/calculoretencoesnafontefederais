@@ -34,3 +34,27 @@ def competencia_de(data: date | None) -> str | None:
     if data is None:
         return None
     return f"{data.month:02d}/{data.year}"
+
+
+def trimestre_chave(data: date | None) -> tuple[int, int]:
+    """Chave de ordenação do trimestre civil: ``(ano, trimestre)``.
+
+    Notas sem data ficam no fim (ano/trimestre muito grandes).
+    """
+    if data is None:
+        return (9999, 9)
+    return (data.year, (data.month - 1) // 3 + 1)
+
+
+def trimestre_rotulo(data: date | None) -> str:
+    """Rótulo do trimestre civil da data, ex.: '2º Trim/2026 (Abr-Mai-Jun)'."""
+    if data is None:
+        return "Sem data"
+    ano, trimestre = trimestre_chave(data)
+    meses = {
+        1: "Jan-Fev-Mar",
+        2: "Abr-Mai-Jun",
+        3: "Jul-Ago-Set",
+        4: "Out-Nov-Dez",
+    }[trimestre]
+    return f"{trimestre}º Trim/{ano} ({meses})"

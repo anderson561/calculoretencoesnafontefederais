@@ -1,20 +1,23 @@
-"""Motor de cálculo de retenções federais.
+"""Motor de totalização de retenções federais.
 
 Regras de negócio:
 
 - **Só o tomador Pessoa Jurídica (CNPJ) sofre retenção.** Pessoa Física (CPF) e
   notas sem documento nunca retêm (IRRF = CRF = INSS = 0).
-- IRRF   = valor_bruto * aliquota_irrf  (dispensa decidida pelo acúmulo por data)
-- CRF    = valor_bruto * (PIS + COFINS + CSLL), dispensado se < mínimo
-- INSS   = base * aliquota_inss (base limitada ao teto), dispensado se < mínimo
-- **Acúmulo de IRRF (sempre ativo):** soma o IRRF das notas do mesmo tomador na
-  **mesma data**; se a soma atingir o mínimo (R$ 10,00) retém, senão dispensa.
+- **O software não calcula imposto por alíquota.** Ele só totaliza o que já
+  veio informado na origem (XML da NFSe ou coluna da planilha). Se um imposto
+  não foi informado, o campo fica ``None`` (não calculado) — não é zero.
+- CRF e INSS informados são dispensados (zerados) se abaixo do valor mínimo.
+- **Acúmulo de IRRF (sempre ativo):** soma o IRRF informado das notas do mesmo
+  tomador na **mesma data**; se a soma atingir o mínimo (R$ 10,00) mantém o
+  valor informado de cada nota, senão dispensa (zera) todas as notas do grupo
+  que tinham IRRF informado.
 """
 from __future__ import annotations
 
 from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Iterable
+from typing import Iterable, Optional
 
 from .config import PARAMETROS_PADRAO, ParametrosRetencao
 from .models import Nota, NotaCalculada, Retencoes, TipoTomador
@@ -36,49 +39,50 @@ def calcular_retencoes(
     nota: Nota,
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
 ) -> Retencoes:
-    """Calcula IRRF, CRF e INSS para uma nota, aplicando as regras de negócio.
+    """Totaliza IRRF, CRF e INSS de uma nota a partir do que já foi informado.
 
     Somente tomador Pessoa Jurídica (CNPJ) sofre retenção; qualquer outro tipo
-    (CPF ou sem documento) retorna zero. O IRRF é devolvido *bruto* — a dispensa
-    do IRRF é decidida no acúmulo por data (:func:`aplicar_dispensa_irrf_acumulada`).
+    (CPF ou sem documento) retorna zero nos três tributos. Para o tomador
+    CNPJ, cada tributo só é preenchido se a nota trouxe o valor informado
+    (:attr:`Nota.irrf_informado`, ``crf_informado``, ``inss_informado``); caso
+    contrário o campo fica ``None`` — nenhum cálculo por alíquota é feito.
+    O IRRF informado é devolvido *bruto* — a dispensa do IRRF é decidida no
+    acúmulo por data (:func:`aplicar_dispensa_irrf_acumulada`).
     """
     zero = Decimal("0.00")
     if nota.tipo_tomador != TipoTomador.CNPJ:
         return Retencoes(irrf=zero, crf=zero, inss=zero)
 
-    bruto = Decimal(nota.valor_bruto)
     minimo = parametros.valor_minimo_retencao
 
-    # IRRF bruto (dispensa aplicada depois, no acúmulo por data).
-    irrf = _arredondar(bruto * parametros.aliquota_irrf)
-
-    # CRF (PIS/COFINS/CSLL), dispensado se abaixo do mínimo.
-    crf = _aplicar_dispensa(_arredondar(bruto * parametros.aliquota_crf), minimo)
-
-    # INSS — base limitada ao teto previdenciário, quando configurado (> 0).
-    base_inss = bruto
-    if parametros.teto_inss > 0 and base_inss > parametros.teto_inss:
-        base_inss = parametros.teto_inss
-    inss = _aplicar_dispensa(_arredondar(base_inss * parametros.aliquota_inss), minimo)
+    irrf: Optional[Decimal] = (
+        _arredondar(nota.irrf_informado) if nota.irrf_informado is not None else None
+    )
+    crf: Optional[Decimal] = (
+        _aplicar_dispensa(_arredondar(nota.crf_informado), minimo)
+        if nota.crf_informado is not None else None
+    )
+    inss: Optional[Decimal] = (
+        _aplicar_dispensa(_arredondar(nota.inss_informado), minimo)
+        if nota.inss_informado is not None else None
+    )
 
     return Retencoes(irrf=irrf, crf=crf, inss=inss)
-
-
-def _irrf_bruto(nota: Nota, parametros: ParametrosRetencao) -> Decimal:
-    """IRRF calculado sobre o valor bruto, sem aplicar a dispensa."""
-    return _arredondar(Decimal(nota.valor_bruto) * parametros.aliquota_irrf)
 
 
 def aplicar_dispensa_irrf_acumulada(
     calculadas: Iterable[NotaCalculada],
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
 ) -> list[NotaCalculada]:
-    """Aplica a dispensa do IRRF acumulando o imposto por tomador e **mesma data**.
+    """Aplica a dispensa do IRRF acumulando o imposto informado por tomador e
+    **mesma data**.
 
-    Regra (sempre ativa): a primeira avaliação é a data — só somam notas do mesmo
-    tomador CNPJ emitidas no mesmo dia. Soma o IRRF bruto dessas notas; se o total
-    atingir o mínimo (R$ 10,00) mantém o IRRF de cada uma, senão zera todas.
-    Notas sem data de emissão são avaliadas isoladamente (uma a uma).
+    Regra (sempre ativa): a primeira avaliação é a data — só somam notas do
+    mesmo tomador CNPJ emitidas no mesmo dia, e apenas as que trouxeram IRRF
+    informado. Soma o IRRF informado dessas notas; se o total atingir o
+    mínimo (R$ 10,00), mantém o IRRF informado de cada uma, senão zera todas.
+    Notas sem IRRF informado permanecem ``None`` (não calculado), independente
+    do grupo. Notas sem data de emissão são avaliadas isoladamente.
 
     Só tomador CNPJ é considerado (CPF e sem documento já têm IRRF = 0).
     Modifica os objetos in place e devolve a mesma lista.
@@ -94,10 +98,16 @@ def aplicar_dispensa_irrf_acumulada(
         grupos[(nc.nota.documento_tomador, data_chave)].append(nc)
 
     for grupo in grupos.values():
-        acumulado = sum((_irrf_bruto(nc.nota, parametros) for nc in grupo), Decimal("0"))
+        acumulado = sum(
+            (_arredondar(nc.nota.irrf_informado) for nc in grupo if nc.nota.irrf_informado is not None),
+            Decimal("0"),
+        )
         dispensar = acumulado < minimo
         for nc in grupo:
-            nc.retencoes.irrf = (
-                Decimal("0.00") if dispensar else _irrf_bruto(nc.nota, parametros)
-            )
+            if nc.nota.irrf_informado is None:
+                nc.retencoes.irrf = None
+            else:
+                nc.retencoes.irrf = (
+                    Decimal("0.00") if dispensar else _arredondar(nc.nota.irrf_informado)
+                )
     return calculadas

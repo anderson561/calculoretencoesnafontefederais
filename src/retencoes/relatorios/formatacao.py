@@ -3,8 +3,13 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Optional
 
 from ..models import Cabecalho, TipoTomador
+
+# Texto exibido quando o imposto não foi informado na origem (não confundir
+# com R$ 0,00, que significa "informado e dispensado/zero").
+NAO_INFORMADO = "-"
 
 
 def mascarar_documento(doc: str, tipo: TipoTomador) -> str:
@@ -16,8 +21,13 @@ def mascarar_documento(doc: str, tipo: TipoTomador) -> str:
     return doc or "-"
 
 
-def moeda_br(valor: Decimal) -> str:
-    """Formata um Decimal como moeda brasileira: 'R$ 1.234,56'."""
+def moeda_br(valor: Optional[Decimal]) -> str:
+    """Formata um Decimal como moeda brasileira: 'R$ 1.234,56'.
+
+    ``None`` (imposto não informado na origem) devolve :data:`NAO_INFORMADO`.
+    """
+    if valor is None:
+        return NAO_INFORMADO
     texto = f"{Decimal(valor):,.2f}"  # 1,234.56 (padrão en-US)
     # Troca separadores para o padrão BR.
     texto = texto.replace(",", "_").replace(".", ",").replace("_", ".")

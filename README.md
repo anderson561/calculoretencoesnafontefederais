@@ -3,20 +3,25 @@
 [![CI](https://github.com/anderson561/calculoretencoesnafontefederais/actions/workflows/ci.yml/badge.svg)](https://github.com/anderson561/calculoretencoesnafontefederais/actions/workflows/ci.yml)
 
 Aplicação **Windows / Python** que processa lotes de Notas Fiscais de Serviço
-Eletrônica (NFSe), calcula as retenções federais na fonte (**IRRF**, **CRF** =
-PIS/COFINS/CSLL e **INSS**) e gera dois relatórios em Excel:
+Eletrônica (NFSe) e **totaliza** as retenções federais na fonte (**IRRF**,
+**CRF** = PIS/COFINS/CSLL e **INSS**) já informadas na origem, gerando três
+relatórios em Excel:
 
 1. **Sintético** — totais por tipo de tomador (CNPJ / CPF / Sem documento).
-2. **Analítico** — totais por tomador individual (blocos de CNPJ, CPF e sem documento).
+2. **Analítico** — uma linha por nota, agrupada por tomador (CNPJ, CPF e sem documento), com subtotal.
+3. **Trimestral** — totais por trimestre civil (soma a cada 3 meses).
 
 Os relatórios podem ser exportados em **Excel (.xlsx)**, **PDF** ou **ambos**.
 
 A aplicação roda **100% local e offline** (adequado a dados fiscais sensíveis /
 LGPD), com **interface gráfica** e também linha de comando.
 
-> ⚠️ **Aviso fiscal:** as alíquotas e regras são *defaults* parametrizáveis e
-> refletem o descrito no PRD. Elas **devem ser validadas por profissional fiscal**
-> contra a legislação vigente. O software apenas aplica os parâmetros configurados.
+> ⚠️ **Aviso fiscal:** o software **não aplica alíquota alguma** — ele só
+> totaliza o que já veio informado no XML da NFSe (tag `vRetIRRF` etc.) ou nas
+> colunas opcionais da planilha. Se um imposto não foi informado, ele fica
+> **em branco ("-")** no relatório — nenhum cálculo é feito para ele. A
+> corretude dos valores informados na origem é de responsabilidade do emissor
+> da nota / do profissional fiscal.
 
 ## Estrutura
 
@@ -82,18 +87,18 @@ pela extensão de `--saida`):
 - Uma **pasta** contendo vários arquivos — todos são lidos e consolidados.
 
 Colunas da planilha padrão (nomes flexíveis, com ou sem acento/maiúsculas):
-`numero`, `documento` (CNPJ/CPF), `nome` (opcional), `data` (emissão) e `valor`.
-A `data` aceita formatos BR (`15/07/2026`) ou ISO (`2026-07-15`) e é usada no
-**acúmulo de IRRF por dia**.
+`numero`, `documento` (CNPJ/CPF), `nome` (opcional), `data` (emissão), `valor`
+e, **opcionalmente**, `irrf`, `crf`, `inss` — os valores de retenção **já
+informados**. Se essas três colunas não existirem (ou a célula estiver vazia),
+nenhum cálculo é feito para aquele imposto naquela nota. A `data` aceita
+formatos BR (`15/07/2026`) ou ISO (`2026-07-15`) e é usada no **acúmulo de
+IRRF por dia**.
 
 ## Parâmetros do cálculo
 
 | CLI | GUI | Descrição | Default |
 |---|---|---|---|
-| `--irrf` | IRRF (fração) | Alíquota de IRRF | `0.015` |
-| `--inss` | INSS (fração) | Alíquota de INSS | `0.11` |
 | `--minimo` | Mínimo p/ retenção | Dispensa abaixo desse valor | `10.00` |
-| `--teto-inss` | Teto INSS | Teto da base do INSS (0 = sem teto) | `0` |
 
 > A **identificação do prestador** não é digitada: é **extraída do XML** da NFSe
 > e exibida no cabeçalho. Em planilhas (sem prestador), o cabeçalho fica em branco.
@@ -130,10 +135,17 @@ O executável fica disponível na aba **Releases** do repositório.
   verificadores → `CNPJ` (14), `CPF` (11) ou `Sem documento`.
 - **Somente tomador Pessoa Jurídica (CNPJ) sofre retenção.** Pessoa Física (CPF)
   e notas sem documento **nunca retêm** (IRRF = CRF = INSS = 0).
-- **Cálculo (tomador CNPJ):** IRRF, CRF (PIS 0,65% + COFINS 3% + CSLL 1% = 4,65%) e INSS.
-  - **CRF/INSS:** dispensados quando abaixo do mínimo (R$ 10,00). INSS respeita o
-    **teto previdenciário** quando configurado.
-  - **IRRF — acúmulo por data (sempre ativo):** a 1ª avaliação é a **data**; somam
-    apenas notas do mesmo CNPJ emitidas no **mesmo dia**. Se a soma do dia atingir
-    R$ 10,00, retém cada nota; senão, dispensa. Datas diferentes não somam; notas
-    sem data são avaliadas isoladamente.
+- **O software não calcula por alíquota — só totaliza o que já foi informado**
+  na origem (tag `vRetIRRF` do XML Nacional, ou colunas `irrf`/`crf`/`inss` da
+  planilha). Se um imposto não foi informado, o relatório mostra `-` (não
+  confundir com `R$ 0,00`, que significa "informado e dispensado/zero").
+  - **CRF/INSS informados:** dispensados (zerados) quando abaixo do mínimo (R$ 10,00).
+  - **IRRF informado — acúmulo por data (sempre ativo):** a 1ª avaliação é a
+    **data**; somam apenas notas do mesmo CNPJ emitidas no **mesmo dia**. Se a
+    soma do dia atingir R$ 10,00, mantém o IRRF informado de cada nota; senão,
+    dispensa (zera). Datas diferentes não somam; notas sem data são avaliadas
+    isoladamente; notas sem IRRF informado nunca entram na soma.
+- **XML Nacional (`sped.fazenda.gov.br/nfse`):** o tomador é lido de `<toma>` e
+  o prestador de `<emit>`/`<prest>` — não confundir um com o outro (bug corrigido
+  nesta versão: o parser antigo pegava o CNPJ do prestador quando o layout não
+  usava as tags "Tomador"/"Prestador" do ABRASF).

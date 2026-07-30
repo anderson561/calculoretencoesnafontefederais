@@ -25,19 +25,19 @@ else:  # pragma: no cover
 def _construir_parametros(args: argparse.Namespace) -> ParametrosRetencao:
     padrao = ParametrosRetencao()
     return ParametrosRetencao(
-        aliquota_irrf=Decimal(str(args.irrf)) if args.irrf is not None else padrao.aliquota_irrf,
-        aliquota_inss=Decimal(str(args.inss)) if args.inss is not None else padrao.aliquota_inss,
         valor_minimo_retencao=(
             Decimal(str(args.minimo)) if args.minimo is not None
             else padrao.valor_minimo_retencao
         ),
-        teto_inss=Decimal(str(args.teto_inss)) if args.teto_inss is not None else padrao.teto_inss,
     )
 
 
 def montar_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Calcula e totaliza retenções federais (IRRF, CRF, INSS) de NFSe.",
+        description=(
+            "Totaliza retenções federais (IRRF, CRF, INSS) de NFSe já informadas "
+            "no XML/planilha de origem — não aplica alíquota alguma."
+        ),
     )
     p.add_argument("-e", "--entrada", required=True,
                    help="Arquivo (.xml/.csv/.xlsx) ou diretório com as notas.")
@@ -46,12 +46,8 @@ def montar_parser() -> argparse.ArgumentParser:
     p.add_argument("-f", "--formato", choices=("auto", "excel", "pdf", "ambos"),
                    default="auto",
                    help="Formato de saída. 'auto' deduz pela extensão de --saida.")
-    p.add_argument("--irrf", type=float, help="Alíquota de IRRF em fração (ex.: 0.015).")
-    p.add_argument("--inss", type=float, help="Alíquota de INSS em fração (ex.: 0.11).")
     p.add_argument("--minimo", type=float,
                    help="Valor mínimo de retenção; abaixo disso é dispensado (padrão 10.00).")
-    p.add_argument("--teto-inss", type=float, dest="teto_inss",
-                   help="Teto da base de INSS (0 = sem teto).")
     return p
 
 

@@ -6,6 +6,9 @@ Colunas esperadas (nomes flexíveis, sem depender de maiúsculas/acentos):
 - documento_tomador -> "documento", "cnpj_cpf", "documento_tomador", "cpf_cnpj"
 - nome_tomador      -> "nome", "razao_social", "nome_tomador"        (opcional)
 - valor_bruto       -> "valor", "valor_bruto", "valor_servico"
+- irrf/crf/inss     -> valor de retenção JÁ INFORMADO (opcional). Se a coluna
+  estiver ausente ou a célula vazia, nenhum cálculo é feito para esse tributo
+  nessa nota — o software não aplica alíquota alguma.
 """
 from __future__ import annotations
 
@@ -35,6 +38,9 @@ _ALIASES = {
         "data", "dataemissao", "data_emissao", "emissao", "dtemissao",
         "competencia", "datanf", "datanota",
     },
+    "irrf": {"irrf", "irrf_informado", "valor_irrf", "irrfretido", "irrf_retido"},
+    "crf": {"crf", "crf_informado", "valor_crf", "crfretido", "crf_retido"},
+    "inss": {"inss", "inss_informado", "valor_inss", "inssretido", "inss_retido"},
 }
 
 
@@ -57,6 +63,16 @@ def _mapear_colunas(colunas: list[str]) -> dict[str, str]:
             if chave in {a.replace("_", "") for a in aliases}:
                 encontrado[campo] = original
     return encontrado
+
+
+def _para_decimal_opt(valor) -> Decimal | None:
+    """Como :func:`_para_decimal`, mas devolve ``None`` para célula vazia."""
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return None
+    texto = str(valor).strip()
+    if not texto:
+        return None
+    return _para_decimal(valor)
 
 
 def _para_decimal(valor) -> Decimal:
@@ -114,6 +130,9 @@ def ler_planilha(caminho: str | Path) -> list[Nota]:
                 nome_tomador=(str(nome).strip() if nome else None),
                 valor_bruto=_para_decimal(linha.get(mapa["valor"])),
                 data_emissao=data,
+                irrf_informado=_para_decimal_opt(linha.get(mapa["irrf"])) if "irrf" in mapa else None,
+                crf_informado=_para_decimal_opt(linha.get(mapa["crf"])) if "crf" in mapa else None,
+                inss_informado=_para_decimal_opt(linha.get(mapa["inss"])) if "inss" in mapa else None,
                 origem=caminho.name,
             )
         )

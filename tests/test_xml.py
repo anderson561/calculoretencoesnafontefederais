@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import date
+from decimal import Decimal
 
 from retencoes.ingestao import ler_xml
 from retencoes.models import TipoTomador
@@ -54,3 +55,65 @@ def test_ler_xml_abrasf(tmp_path: Path):
     # Prestador extraído do XML
     assert nota.prestador_nome == "Norte Contábil Ltda"
     assert nota.prestador_cnpj == "45723174000110"
+
+
+# Amostra sintética (dados fictícios) no leiaute NFS-e Nacional
+# (sped.fazenda.gov.br/nfse), que usa <emit>/<prest>/<toma> em vez de
+# Prestador/Tomador do ABRASF. Estrutura equivalente a uma nota real, mas com
+# CNPJs, nomes e valores inventados — sem nada sensível.
+XML_NACIONAL = """<?xml version="1.0" encoding="UTF-8"?>
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  <infNFSe Id="NFS0000000000000000000000000000000000000123">
+    <nNFSe>555</nNFSe>
+    <emit>
+      <CNPJ>45723174000110</CNPJ>
+      <xNome>Prestador Exemplo Ltda</xNome>
+    </emit>
+    <DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+      <infDPS Id="DPS00000000000000000000000000000000000000">
+        <dhEmi>2026-05-04T11:22:50-03:00</dhEmi>
+        <prest>
+          <CNPJ>45723174000110</CNPJ>
+        </prest>
+        <toma>
+          <CNPJ>11222333000181</CNPJ>
+          <xNome>Tomador Exemplo S.A.</xNome>
+        </toma>
+        <valores>
+          <vServPrest><vServ>100000.00</vServ></vServPrest>
+          <trib>
+            <tribFed><vRetIRRF>1500.00</vRetIRRF></tribFed>
+          </trib>
+        </valores>
+      </infDPS>
+    </DPS>
+  </infNFSe>
+</NFSe>
+"""
+
+
+def test_ler_xml_nacional_nao_troca_tomador_pelo_prestador(tmp_path: Path):
+    arq = tmp_path / "nota_nacional.xml"
+    arq.write_text(XML_NACIONAL, encoding="utf-8")
+
+    notas = ler_xml(arq)
+    assert len(notas) == 1
+    nota = notas[0]
+
+    # Tomador correto (não pode ser o CNPJ/nome do emitente/prestador).
+    assert nota.tipo_tomador == TipoTomador.CNPJ
+    assert nota.documento_tomador == "11222333000181"
+    assert nota.nome_tomador == "Tomador Exemplo S.A."
+
+    # Prestador correto, extraído de <emit>.
+    assert nota.prestador_cnpj == "45723174000110"
+    assert nota.prestador_nome == "Prestador Exemplo Ltda"
+
+    assert nota.numero == "555"
+    assert str(nota.valor_bruto) == "100000.00"
+    assert nota.data_emissao == date(2026, 5, 4)
+
+    # IRRF informado no XML é extraído; CRF/INSS não informados ficam None.
+    assert nota.irrf_informado == Decimal("1500.00")
+    assert nota.crf_informado is None
+    assert nota.inss_informado is None

@@ -1,12 +1,13 @@
 """Leitor de XML de NFSe (RF01) — padrões ABRASF e Nacional.
 
-XMLs de NFSe variam bastante entre municípios (namespaces e nomes de tags).
-Para maximizar a compatibilidade, este leitor:
+XMLs de NFSe variam bastante entre municípios/leiautes (namespaces e nomes de
+tags). Para maximizar a compatibilidade, este leitor:
 
 - ignora namespaces (compara sempre pelo *nome local* da tag);
 - compara nomes de tag de forma case-insensitive;
 - ancora cada nota em um elemento reconhecível e, dentro dele, procura o
-  bloco do tomador, o valor do serviço, o número e o nome.
+  bloco do tomador e do prestador por um conjunto de nomes de tag *exatos*
+  (não por substring — "toma" não deve casar por acidente com outra tag).
 
 Não cobre 100% dos layouts proprietários — para esses, use a planilha padrão.
 """
@@ -24,6 +25,12 @@ from ..sanitizacao import classificar_tomador
 # Elementos que representam "uma nota". Preferimos o mais interno disponível.
 _ANCORAS_NOTA = ("infnfse", "infdeclaracaoprestacaoservico", "nfse")
 
+# Nomes de tag (locais, exatos) do bloco do tomador/prestador.
+# ABRASF usa "Tomador"/"TomadorServico" e "Prestador"; o leiaute Nacional
+# (sped.fazenda.gov.br/nfse) usa "toma", "emit" e "prest".
+_TAGS_BLOCO_TOMADOR = {"tomador", "tomadorservico", "toma"}
+_TAGS_BLOCO_PRESTADOR = {"prestador", "emit", "prest"}
+
 # Nomes de tag (locais) para cada dado de interesse.
 _TAGS_VALOR = ("valorservicos", "valorservico", "vserv", "vservprest")
 _TAGS_NUMERO = ("numero", "nnfse", "numeronfse")
@@ -32,6 +39,16 @@ _TAGS_CNPJ = ("cnpj",)
 _TAGS_CPF = ("cpf",)
 _TAGS_CPFCNPJ = ("cpfcnpj",)
 _TAGS_NOME = ("razaosocial", "nomerazaosocial", "xnome", "nome")
+
+# Valores de retenção federal já informados no XML (leiaute Nacional).
+# ATENÇÃO: vretirrf foi validado contra XML real. Os demais (PIS/COFINS/CSLL/
+# INSS) são candidatos ainda não confirmados em uma nota real que os informe —
+# validar contra um exemplo real assim que disponível.
+_TAGS_IRRF_INFORMADO = ("vretirrf",)
+_TAGS_PIS_INFORMADO = ("vretpis",)
+_TAGS_COFINS_INFORMADO = ("vretcofins",)
+_TAGS_CSLL_INFORMADO = ("vretcsll",)
+_TAGS_INSS_INFORMADO = ("vretinss",)
 
 
 def _local(tag: object) -> str:
@@ -59,19 +76,10 @@ def _primeiro_texto(elemento: etree._Element, nomes: tuple[str, ...]) -> str | N
     return None
 
 
-def _achar_bloco_tomador(nota: etree._Element) -> etree._Element:
-    """Retorna o subelemento do tomador (para não pegar o documento do prestador)."""
+def _achar_bloco(nota: etree._Element, nomes: set[str]) -> etree._Element | None:
+    """Retorna o primeiro subelemento cujo nome local esteja em ``nomes``."""
     for filho in nota.iter():
-        nome = _local(filho.tag)
-        if "tomador" in nome or "tomadorservico" in nome:
-            return filho
-    return nota  # fallback: procura na nota inteira
-
-
-def _achar_bloco_prestador(nota: etree._Element) -> etree._Element | None:
-    """Retorna o subelemento do prestador (razão social + CNPJ), se houver."""
-    for filho in nota.iter():
-        if "prestador" in _local(filho.tag):
+        if _local(filho.tag) in nomes:
             return filho
     return None
 
@@ -99,6 +107,13 @@ def _para_decimal(texto: str | None) -> Decimal:
         raise ValueError(f"Valor de serviço inválido no XML: {texto!r}") from exc
 
 
+def _para_decimal_opt(texto: str | None) -> Decimal | None:
+    """Como :func:`_para_decimal`, mas devolve ``None`` se a tag não existir."""
+    if texto is None:
+        return None
+    return _para_decimal(texto)
+
+
 def ler_xml(caminho: str | Path) -> list[Nota]:
     """Lê um XML de NFSe e devolve a lista de notas normalizadas."""
     caminho = Path(caminho)
@@ -108,11 +123,13 @@ def ler_xml(caminho: str | Path) -> list[Nota]:
 
     notas: list[Nota] = []
     for i, no in enumerate(_achar_ancoras(raiz), start=1):
-        bloco_tomador = _achar_bloco_tomador(no)
+        bloco_tomador = _achar_bloco(no, _TAGS_BLOCO_TOMADOR)
+        if bloco_tomador is None:
+            bloco_tomador = no
         documento = _extrair_documento(bloco_tomador)
         tipo, doc = classificar_tomador(documento)
 
-        bloco_prestador = _achar_bloco_prestador(no)
+        bloco_prestador = _achar_bloco(no, _TAGS_BLOCO_PRESTADOR)
         prestador_nome = _primeiro_texto(bloco_prestador, _TAGS_NOME) if bloco_prestador is not None else None
         prestador_doc = _extrair_documento(bloco_prestador) if bloco_prestador is not None else None
 
@@ -126,10 +143,25 @@ def ler_xml(caminho: str | Path) -> list[Nota]:
                 data_emissao=parse_data(_primeiro_texto(no, _TAGS_DATA)),
                 prestador_nome=prestador_nome,
                 prestador_cnpj=(apenas_digitos_doc(prestador_doc)),
+                irrf_informado=_para_decimal_opt(_primeiro_texto(no, _TAGS_IRRF_INFORMADO)),
+                crf_informado=_crf_informado(no),
+                inss_informado=_para_decimal_opt(_primeiro_texto(no, _TAGS_INSS_INFORMADO)),
                 origem=caminho.name,
             )
         )
     return notas
+
+
+def _crf_informado(no: etree._Element) -> Decimal | None:
+    """Soma PIS + COFINS + CSLL informados; ``None`` se nenhum foi informado."""
+    partes = (
+        _primeiro_texto(no, _TAGS_PIS_INFORMADO),
+        _primeiro_texto(no, _TAGS_COFINS_INFORMADO),
+        _primeiro_texto(no, _TAGS_CSLL_INFORMADO),
+    )
+    if all(p is None for p in partes):
+        return None
+    return sum((_para_decimal(p) for p in partes if p is not None), Decimal("0"))
 
 
 def apenas_digitos_doc(doc: str | None) -> str | None:
