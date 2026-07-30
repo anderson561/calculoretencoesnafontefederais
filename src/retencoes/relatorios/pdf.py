@@ -4,9 +4,11 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
+from xml.sax.saxutils import escape
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     Paragraph,
@@ -23,6 +25,12 @@ from .formatacao import linhas_cabecalho, mascarar_documento, moeda_br
 _AZUL = colors.HexColor("#1F4E78")
 _CINZA = colors.HexColor("#D9D9D9")
 _CINZA_CLARO = colors.HexColor("#F2F2F2")
+_ESTILO_NOME = ParagraphStyle("nome_celula", fontName="Helvetica", fontSize=8, leading=10)
+
+
+def _celula_nome(texto: str) -> Paragraph:
+    """Nome/Razão Social como Paragraph, para quebrar linha em vez de vazar da coluna."""
+    return Paragraph(escape(texto), _ESTILO_NOME)
 
 
 def _estilo_tabela(n_linhas: int, com_total: bool, col_direita: int = 2) -> TableStyle:
@@ -88,13 +96,13 @@ def _tabela_analitico(linhas) -> Table:
             doc_fmt = mascarar_documento(la.documento, la.tipo)
             for item in la.itens_ordenados:
                 dados.append([
-                    doc_fmt, item.numero, item.data_fmt, la.nome or "-", "1",
+                    doc_fmt, item.numero, item.data_fmt, _celula_nome(la.nome or "-"), "1",
                     moeda_br(item.valor_bruto), moeda_br(item.irrf),
                     moeda_br(item.crf), moeda_br(item.inss),
                 ])
             if la.qtd_notas > 1:
                 dados.append([
-                    "", "", "", f"Subtotal — {la.nome or doc_fmt}", str(la.qtd_notas),
+                    "", "", "", _celula_nome(f"Subtotal — {la.nome or doc_fmt}"), str(la.qtd_notas),
                     moeda_br(la.valor_bruto), moeda_br(la.total_irrf),
                     moeda_br(la.total_crf), moeda_br(la.total_inss),
                 ])

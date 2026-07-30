@@ -122,6 +122,7 @@ def _bloco_analitico(ws: Worksheet, linha: int, titulo: str, linhas_dados) -> in
         return linha + 2
 
     fundo_sub = PatternFill("solid", fgColor=_CINZA_CLARO)
+    alinhamento_nome = Alignment(wrap_text=True, vertical="center")
     for la in linhas_dados:
         doc_fmt = mascarar_documento(la.documento, la.tipo)
         # Uma linha por nota (evita listas gigantes numa única célula).
@@ -129,7 +130,7 @@ def _bloco_analitico(ws: Worksheet, linha: int, titulo: str, linhas_dados) -> in
             ws.cell(row=linha, column=1, value=doc_fmt)
             ws.cell(row=linha, column=2, value=item.numero)
             ws.cell(row=linha, column=3, value=item.data_fmt)
-            ws.cell(row=linha, column=4, value=la.nome or "-")
+            ws.cell(row=linha, column=4, value=la.nome or "-").alignment = alinhamento_nome
             ws.cell(row=linha, column=5, value=1)
             _moeda(ws, linha, 6, item.valor_bruto)
             _moeda(ws, linha, 7, item.irrf)
@@ -138,7 +139,9 @@ def _bloco_analitico(ws: Worksheet, linha: int, titulo: str, linhas_dados) -> in
             linha += 1
         # Subtotal do tomador (só faz sentido destacar quando há mais de 1 nota).
         if la.qtd_notas > 1:
-            ws.cell(row=linha, column=4, value=f"Subtotal — {la.nome or doc_fmt}").font = Font(italic=True)
+            cel_nome = ws.cell(row=linha, column=4, value=f"Subtotal — {la.nome or doc_fmt}")
+            cel_nome.font = Font(italic=True)
+            cel_nome.alignment = alinhamento_nome
             ws.cell(row=linha, column=5, value=la.qtd_notas).font = Font(bold=True)
             _moeda(ws, linha, 6, la.valor_bruto, negrito=True)
             _moeda(ws, linha, 7, la.total_irrf, negrito=True)
@@ -169,7 +172,7 @@ def _aba_analitico(ws: Worksheet, notas: list[NotaCalculada], cab: Cabecalho | N
     for c in range(1, 10):
         ws.cell(row=linha, column=c).fill = fundo
 
-    _autoajustar(ws, [22, 12, 12, 30, 10, 15, 14, 14, 14])
+    _autoajustar(ws, [22, 12, 12, 34, 10, 15, 14, 14, 14])
 
 
 def _aba_trimestral(ws: Worksheet, notas: list[NotaCalculada], cab: Cabecalho | None) -> None:
