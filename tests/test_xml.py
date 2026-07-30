@@ -82,7 +82,7 @@ XML_NACIONAL = """<?xml version="1.0" encoding="UTF-8"?>
         <valores>
           <vServPrest><vServ>100000.00</vServ></vServPrest>
           <trib>
-            <tribFed><vRetIRRF>1500.00</vRetIRRF></tribFed>
+            <tribFed><vRetIRRF>1500.00</vRetIRRF><vRetCP>800.00</vRetCP></tribFed>
           </trib>
         </valores>
       </infDPS>
@@ -113,10 +113,11 @@ def test_ler_xml_nacional_nao_troca_tomador_pelo_prestador(tmp_path: Path):
     assert str(nota.valor_bruto) == "100000.00"
     assert nota.data_emissao == date(2026, 5, 4)
 
-    # IRRF informado no XML é extraído; CRF/INSS não informados ficam None.
+    # IRRF e INSS (vRetCP = Contribuição Previdenciária) informados são
+    # extraídos; CRF (PIS/COFINS/CSLL), não informado, fica None.
     assert nota.irrf_informado == Decimal("1500.00")
     assert nota.crf_informado is None
-    assert nota.inss_informado is None
+    assert nota.inss_informado == Decimal("800.00")
 
 
 # Amostra sintética (dados fictícios) no leiaute ABRASF usado por Salvador/BA,

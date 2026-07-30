@@ -40,15 +40,15 @@ _TAGS_CPF = ("cpf",)
 _TAGS_CPFCNPJ = ("cpfcnpj",)
 _TAGS_NOME = ("razaosocial", "nomerazaosocial", "xnome", "nome")
 
-# Valores de retenção federal já informados no XML. Cobre dois leiautes
-# validados contra XML real: o Nacional (sped.fazenda.gov.br/nfse, tag
-# vRetIRRF) e uma variante ABRASF que traz Valor{Pis,Cofins,Csll,Inss,Ir}
-# dentro de <Servico><Valores>.
+# Valores de retenção federal já informados no XML. Cobre leiautes validados
+# contra XML real: o Nacional (sped.fazenda.gov.br/nfse — IRRF em vRetIRRF,
+# INSS/Contribuição Previdenciária em vRetCP) e uma variante ABRASF que traz
+# Valor{Pis,Cofins,Csll,Inss,Ir} dentro de <Servico><Valores>.
 _TAGS_IRRF_INFORMADO = ("vretirrf", "valorir")
 _TAGS_PIS_INFORMADO = ("vretpis", "valorpis")
 _TAGS_COFINS_INFORMADO = ("vretcofins", "valorcofins")
 _TAGS_CSLL_INFORMADO = ("vretcsll", "valorcsll")
-_TAGS_INSS_INFORMADO = ("vretinss", "valorinss")
+_TAGS_INSS_INFORMADO = ("vretinss", "valorinss", "vretcp")
 
 
 def _local(tag: object) -> str:
