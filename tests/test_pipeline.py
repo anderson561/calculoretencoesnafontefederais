@@ -1,8 +1,6 @@
 from decimal import Decimal
 from pathlib import Path
 
-from openpyxl import load_workbook
-
 from retencoes.pipeline import processar
 
 CSV = """numero;documento;nome;valor
@@ -19,20 +17,6 @@ def _csv(tmp_path: Path) -> Path:
     return entrada
 
 
-def test_fluxo_excel(tmp_path: Path):
-    saida = tmp_path / "out" / "retencoes.xlsx"
-    gerados, qtd = processar(_csv(tmp_path), saida)
-
-    assert qtd == 4
-    assert len(gerados) == 1
-    assert gerados[0].exists() and gerados[0].suffix == ".xlsx"
-
-    wb = load_workbook(gerados[0])
-    assert "Sintético (Tipo)" in wb.sheetnames
-    assert "Analítico (Tomador)" in wb.sheetnames
-    assert "Trimestral" in wb.sheetnames
-
-
 def test_fluxo_pdf(tmp_path: Path):
     saida = tmp_path / "retencoes.pdf"
     gerados, qtd = processar(_csv(tmp_path), saida)
@@ -45,19 +29,20 @@ def test_fluxo_pdf(tmp_path: Path):
     assert pdf.read_bytes()[:5] == b"%PDF-"
 
 
-def test_fluxo_ambos(tmp_path: Path):
+def test_saida_sempre_vira_pdf_mesmo_com_outra_extensao(tmp_path: Path):
+    # O relatório só é gerado em PDF; qualquer extensão pedida é normalizada.
     saida = tmp_path / "retencoes.xlsx"
-    gerados, _ = processar(_csv(tmp_path), saida, formato="ambos")
+    gerados, _ = processar(_csv(tmp_path), saida)
 
-    sufixos = sorted(g.suffix for g in gerados)
-    assert sufixos == [".pdf", ".xlsx"]
-    assert all(g.exists() for g in gerados)
+    assert len(gerados) == 1
+    assert gerados[0].suffix == ".pdf"
+    assert gerados[0].exists()
 
 
 def test_diretorio_com_multiplos_arquivos(tmp_path: Path):
     (tmp_path / "a.csv").write_text(CSV, encoding="utf-8")
     (tmp_path / "b.csv").write_text(CSV, encoding="utf-8")
-    saida = tmp_path / "retencoes.xlsx"
+    saida = tmp_path / "retencoes.pdf"
 
     _, qtd = processar(tmp_path, saida)
     assert qtd == 8
@@ -75,7 +60,7 @@ CSV_COM_IMPOSTO_INFORMADO = """numero;documento;nome;valor;irrf;crf;inss
 def test_planilha_sem_colunas_de_imposto_nao_calcula_nada(tmp_path: Path):
     entrada = tmp_path / "notas.csv"
     entrada.write_text(CSV_SEM_IMPOSTO_INFORMADO, encoding="utf-8")
-    saida = tmp_path / "retencoes.xlsx"
+    saida = tmp_path / "retencoes.pdf"
 
     gerados, qtd = processar(entrada, saida)
     assert qtd == 1
@@ -85,7 +70,6 @@ def test_planilha_sem_colunas_de_imposto_nao_calcula_nada(tmp_path: Path):
 def test_planilha_com_colunas_de_imposto_usa_valor_informado(tmp_path: Path):
     entrada = tmp_path / "notas.csv"
     entrada.write_text(CSV_COM_IMPOSTO_INFORMADO, encoding="utf-8")
-    saida = tmp_path / "retencoes.xlsx"
 
     from retencoes.ingestao import ler_entrada
     from retencoes.pipeline import calcular_notas

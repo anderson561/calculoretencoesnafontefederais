@@ -33,6 +33,16 @@ def _celula_nome(texto: str) -> Paragraph:
     return Paragraph(escape(texto), _ESTILO_NOME)
 
 
+def _linha_cabecalho_markup(rotulo: str, valor: str) -> str:
+    """Markup do reportlab para uma linha do cabeçalho, com valor escapado.
+
+    ``valor`` vem de dados externos (ex.: razão social do prestador) — sem
+    escapar, caracteres como ``<``/``&`` são interpretados como markup pelo
+    Paragraph e o texto é silenciosamente cortado/corrompido.
+    """
+    return f"<b>{escape(rotulo)}:</b> {escape(valor)}"
+
+
 def _estilo_tabela(n_linhas: int, com_total: bool, col_direita: int = 2) -> TableStyle:
     comandos = [
         ("BACKGROUND", (0, 0), (-1, 0), _AZUL),
@@ -187,7 +197,7 @@ def exportar_pdf(
 
     elementos: list = [Paragraph("Retenções Federais sobre NFSe", h1)]
     for rotulo, valor in linhas_cabecalho(cabecalho):
-        elementos.append(Paragraph(f"<b>{rotulo}:</b> {valor}", info))
+        elementos.append(Paragraph(_linha_cabecalho_markup(rotulo, valor), info))
     elementos += [
         Spacer(1, 4 * mm),
         Paragraph("Relatório 1 — Totalizador por Tipo de Documento", h2),

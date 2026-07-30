@@ -1,7 +1,7 @@
 """Interface gráfica simples (Tkinter) da Calculadora de Retenções Federais.
 
 Permite selecionar um arquivo (.xml/.csv/.xlsx) ou uma pasta, definir o local de
-saída e os parâmetros de cálculo, e gerar os relatórios em Excel com um clique.
+saída e os parâmetros de cálculo, e gerar o relatório em PDF com um clique.
 
 Não depende de bibliotecas externas de GUI (Tkinter faz parte da biblioteca
 padrão do Python), o que facilita o empacotamento em .exe.
@@ -39,9 +39,8 @@ class App(ttk.Frame):
 
         padrao = ParametrosRetencao()
         self.var_entrada = tk.StringVar()
-        self.var_saida = tk.StringVar(value=str(Path("saida") / "retencoes.xlsx"))
+        self.var_saida = tk.StringVar(value=str(Path("saida") / "retencoes.pdf"))
         self.var_minimo = tk.StringVar(value=str(padrao.valor_minimo_retencao))
-        self.var_formato = tk.StringVar(value="excel")
 
         self._montar_widgets()
 
@@ -92,17 +91,6 @@ class App(ttk.Frame):
             justify="left",
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
-        # Formato de saída
-        r += 1
-        formato = ttk.LabelFrame(self, text="Formato do relatório", padding=10)
-        formato.grid(row=r, column=0, columnspan=3, sticky="ew", pady=(4, 6))
-        for i, (rotulo, valor) in enumerate(
-            (("Excel (.xlsx)", "excel"), ("PDF (.pdf)", "pdf"), ("Ambos", "ambos"))
-        ):
-            ttk.Radiobutton(
-                formato, text=rotulo, value=valor, variable=self.var_formato
-            ).grid(row=0, column=i, sticky="w", padx=(0, 16))
-
         # Ação
         r += 1
         self.btn_gerar = ttk.Button(self, text="Gerar relatório", command=self._ao_gerar)
@@ -132,9 +120,9 @@ class App(ttk.Frame):
     def _escolher_saida(self) -> None:
         caminho = filedialog.asksaveasfilename(
             title="Salvar relatório como",
-            defaultextension=".xlsx",
-            filetypes=[("Excel", "*.xlsx")],
-            initialfile="retencoes.xlsx",
+            defaultextension=".pdf",
+            filetypes=[("PDF", "*.pdf")],
+            initialfile="retencoes.pdf",
         )
         if caminho:
             self.var_saida.set(caminho)
@@ -170,20 +158,19 @@ class App(ttk.Frame):
             return
 
         # Processa em thread para não congelar a interface.
-        formato = self.var_formato.get()
         self.btn_gerar.config(state="disabled")
         self.var_status.set("Processando…")
         threading.Thread(
             target=self._processar,
-            args=(entrada, saida, parametros, formato),
+            args=(entrada, saida, parametros),
             daemon=True,
         ).start()
 
     def _processar(
-        self, entrada: str, saida: str, parametros: ParametrosRetencao, formato: str,
+        self, entrada: str, saida: str, parametros: ParametrosRetencao,
     ) -> None:
         try:
-            gerados, qtd = processar(entrada, saida, parametros, formato)
+            gerados, qtd = processar(entrada, saida, parametros)
         except Exception as exc:  # noqa: BLE001 — feedback amigável ao usuário
             self.master.after(0, self._falhou, exc)
         else:

@@ -1,9 +1,10 @@
 """CLI da Calculadora e Totalizadora de Retenções Federais (NFSe).
 
 Uso:
-    python src/main.py -e <entrada> -s <saida.xlsx> [opções]
+    python src/main.py -e <entrada> -s <saida.pdf> [opções]
 
 Onde <entrada> é um arquivo (.xml/.csv/.xlsx) ou um diretório com vários deles.
+O relatório é sempre gerado em PDF.
 """
 from __future__ import annotations
 
@@ -41,11 +42,8 @@ def montar_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("-e", "--entrada", required=True,
                    help="Arquivo (.xml/.csv/.xlsx) ou diretório com as notas.")
-    p.add_argument("-s", "--saida", default="relatorios/retencoes.xlsx",
-                   help="Caminho base do relatório (padrão: relatorios/retencoes.xlsx).")
-    p.add_argument("-f", "--formato", choices=("auto", "excel", "pdf", "ambos"),
-                   default="auto",
-                   help="Formato de saída. 'auto' deduz pela extensão de --saida.")
+    p.add_argument("-s", "--saida", default="relatorios/retencoes.pdf",
+                   help="Caminho do relatório em PDF (padrão: relatorios/retencoes.pdf).")
     p.add_argument("--minimo", type=float,
                    help="Valor mínimo de retenção; abaixo disso é dispensado (padrão 10.00).")
     return p
@@ -60,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parametros = _construir_parametros(args)
     try:
-        gerados, qtd = processar(entrada, args.saida, parametros, args.formato)
+        gerados, qtd = processar(entrada, args.saida, parametros)
     except Exception as exc:  # noqa: BLE001 — CLI amigável ao usuário final
         print(f"[ERRO] Falha ao processar: {exc}", file=sys.stderr)
         return 1

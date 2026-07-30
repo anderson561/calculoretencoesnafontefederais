@@ -4,14 +4,12 @@
 
 Aplicação **Windows / Python** que processa lotes de Notas Fiscais de Serviço
 Eletrônica (NFSe) e **totaliza** as retenções federais na fonte (**IRRF**,
-**CRF** = PIS/COFINS/CSLL e **INSS**) já informadas na origem, gerando três
-relatórios em Excel:
+**CRF** = PIS/COFINS/CSLL e **INSS**) já informadas na origem, gerando um
+relatório em **PDF** com três seções:
 
 1. **Sintético** — totais por tipo de tomador (CNPJ / CPF / Sem documento).
 2. **Analítico** — uma linha por nota, agrupada por tomador (CNPJ, CPF e sem documento), com subtotal.
 3. **Trimestral** — totais por trimestre civil (soma a cada 3 meses).
-
-Os relatórios podem ser exportados em **Excel (.xlsx)**, **PDF** ou **ambos**.
 
 A aplicação roda **100% local e offline** (adequado a dados fiscais sensíveis /
 LGPD), com **interface gráfica** e também linha de comando.
@@ -42,7 +40,7 @@ LGPD), com **interface gráfica** e também linha de comando.
 │       ├── calculo.py                    # Motor de cálculo (RF03)
 │       ├── pipeline.py                   # Orquestração ingestão→cálculo→relatório
 │       ├── ingestao/                     # Leitura de CSV/XLSX e XML NFSe (RF01)
-│       └── relatorios/                   # Agregação + exportação Excel (RF04/RF05)
+│       └── relatorios/                   # Agregação + exportação em PDF (RF04/RF05)
 └── tests/                                # Suíte de testes (pytest)
 ```
 
@@ -72,14 +70,11 @@ ajuste os parâmetros se quiser e clique em **Gerar relatório**.
 
 ### Opção B — Linha de comando
 ```powershell
-.\.venv\Scripts\python.exe src\main.py -e exemplos\notas_modelo.csv -s saida\retencoes.xlsx
+.\.venv\Scripts\python.exe src\main.py -e exemplos\notas_modelo.csv -s saida\retencoes.pdf
 ```
 
-Para escolher o formato, use `-f excel|pdf|ambos` (ou deixe `auto`, que deduz
-pela extensão de `--saida`):
-```powershell
-.\.venv\Scripts\python.exe src\main.py -e exemplos\notas_modelo.csv -s saida\retencoes -f ambos
-```
+O relatório é sempre gerado em **PDF** — qualquer extensão passada em `--saida`
+é normalizada para `.pdf`.
 
 ### Entrada aceita (RF01)
 - **XML** de NFSe nos padrões **ABRASF / Nacional** (`.xml`).

@@ -8,7 +8,6 @@ from .agregacao import (
     agregar_analitico,
     agregar_sintetico,
 )
-from .excel import exportar_excel
 from .pdf import exportar_pdf
 
 __all__ = [
@@ -17,6 +16,5 @@ __all__ = [
     "RelatorioAnalitico",
     "agregar_analitico",
     "agregar_sintetico",
-    "exportar_excel",
     "exportar_pdf",
 ]
