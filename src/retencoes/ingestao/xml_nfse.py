@@ -26,10 +26,10 @@ from ..sanitizacao import classificar_tomador
 _ANCORAS_NOTA = ("infnfse", "infdeclaracaoprestacaoservico", "nfse")
 
 # Nomes de tag (locais, exatos) do bloco do tomador/prestador.
-# ABRASF usa "Tomador"/"TomadorServico" e "Prestador"; o leiaute Nacional
-# (sped.fazenda.gov.br/nfse) usa "toma", "emit" e "prest".
+# ABRASF usa "Tomador"/"TomadorServico" e "Prestador"/"PrestadorServico"; o
+# leiaute Nacional (sped.fazenda.gov.br/nfse) usa "toma", "emit" e "prest".
 _TAGS_BLOCO_TOMADOR = {"tomador", "tomadorservico", "toma"}
-_TAGS_BLOCO_PRESTADOR = {"prestador", "emit", "prest"}
+_TAGS_BLOCO_PRESTADOR = {"prestador", "prestadorservico", "emit", "prest"}
 
 # Nomes de tag (locais) para cada dado de interesse.
 _TAGS_VALOR = ("valorservicos", "valorservico", "vserv", "vservprest")
@@ -40,15 +40,15 @@ _TAGS_CPF = ("cpf",)
 _TAGS_CPFCNPJ = ("cpfcnpj",)
 _TAGS_NOME = ("razaosocial", "nomerazaosocial", "xnome", "nome")
 
-# Valores de retenção federal já informados no XML (leiaute Nacional).
-# ATENÇÃO: vretirrf foi validado contra XML real. Os demais (PIS/COFINS/CSLL/
-# INSS) são candidatos ainda não confirmados em uma nota real que os informe —
-# validar contra um exemplo real assim que disponível.
-_TAGS_IRRF_INFORMADO = ("vretirrf",)
-_TAGS_PIS_INFORMADO = ("vretpis",)
-_TAGS_COFINS_INFORMADO = ("vretcofins",)
-_TAGS_CSLL_INFORMADO = ("vretcsll",)
-_TAGS_INSS_INFORMADO = ("vretinss",)
+# Valores de retenção federal já informados no XML. Cobre dois leiautes
+# validados contra XML real: o Nacional (sped.fazenda.gov.br/nfse, tag
+# vRetIRRF) e uma variante ABRASF que traz Valor{Pis,Cofins,Csll,Inss,Ir}
+# dentro de <Servico><Valores>.
+_TAGS_IRRF_INFORMADO = ("vretirrf", "valorir")
+_TAGS_PIS_INFORMADO = ("vretpis", "valorpis")
+_TAGS_COFINS_INFORMADO = ("vretcofins", "valorcofins")
+_TAGS_CSLL_INFORMADO = ("vretcsll", "valorcsll")
+_TAGS_INSS_INFORMADO = ("vretinss", "valorinss")
 
 
 def _local(tag: object) -> str:
