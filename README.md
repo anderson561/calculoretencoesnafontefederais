@@ -12,7 +12,10 @@ relatório em **PDF** com três seções:
 3. **Trimestral** — totais por trimestre civil (soma a cada 3 meses).
 
 A aplicação roda **100% local e offline** (adequado a dados fiscais sensíveis /
-LGPD), com **interface gráfica** e também linha de comando.
+LGPD), com **interface gráfica** e também linha de comando. O processamento
+das notas nunca depende de internet — a única chamada de rede é uma checagem
+opcional e não bloqueante de nova versão (ver abaixo), que falha em silêncio
+se não houver conexão.
 
 > ⚠️ **Aviso fiscal:** o software **não aplica alíquota alguma** — ele só
 > totaliza o que já veio informado no XML da NFSe (tag `vRetIRRF` etc.) ou nas
@@ -123,6 +126,15 @@ O executável fica disponível na aba **Releases** do repositório.
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
+
+## Verificação de nova versão
+
+Ao abrir, a GUI consulta em segundo plano a última Release publicada no
+GitHub (`retencoes/atualizacao.py`). Se houver uma versão mais nova, aparece
+um aviso clicável no topo da janela levando à página de download da Release
+— o aplicativo **não baixa nem instala nada sozinho**. Se não houver internet
+ou o GitHub estiver indisponível, a checagem falha em silêncio e a aplicação
+funciona normalmente.
 
 ## Regras de negócio implementadas
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import webbrowser
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -19,9 +20,11 @@ from tkinter import filedialog, messagebox, ttk
 # Permite rodar como script solto (PyInstaller) ou como módulo do pacote.
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from retencoes.atualizacao import InfoAtualizacao, verificar_atualizacao  # type: ignore
     from retencoes.config import ParametrosRetencao  # type: ignore
     from retencoes.pipeline import processar  # type: ignore
 else:  # pragma: no cover
+    from .retencoes.atualizacao import InfoAtualizacao, verificar_atualizacao
     from .retencoes.config import ParametrosRetencao
     from .retencoes.pipeline import processar
 
@@ -43,10 +46,20 @@ class App(ttk.Frame):
         self.var_minimo = tk.StringVar(value=str(padrao.valor_minimo_retencao))
 
         self._montar_widgets()
+        self._iniciar_verificacao_atualizacao()
 
     # ---- construção da interface -------------------------------------------------
     def _montar_widgets(self) -> None:
-        r = 0
+        self.lbl_atualizacao = tk.Label(
+            self,
+            text="",
+            fg="#1A73E8",
+            font=("", 9, "underline"),
+            cursor="hand2",
+        )
+        self.lbl_atualizacao.bind("<Button-1>", self._abrir_link_atualizacao)
+
+        r = 1
         ttk.Label(self, text="1) Entrada (arquivo XML/CSV/XLSX ou pasta)").grid(
             row=r, column=0, columnspan=3, sticky="w", pady=(0, 4)
         )
@@ -189,6 +202,28 @@ class App(ttk.Frame):
         self.btn_gerar.config(state="normal")
         self.var_status.set("Falha ao processar.")
         messagebox.showerror(TITULO, f"Erro ao processar:\n{exc}")
+
+    # ---- verificação de atualização (opcional, não bloqueia se offline) ----------
+    def _iniciar_verificacao_atualizacao(self) -> None:
+        self._info_atualizacao: InfoAtualizacao | None = None
+        threading.Thread(target=self._verificar_atualizacao, daemon=True).start()
+
+    def _verificar_atualizacao(self) -> None:
+        info = verificar_atualizacao()
+        if info is not None:
+            self.master.after(0, self._mostrar_atualizacao, info)
+
+    def _mostrar_atualizacao(self, info: InfoAtualizacao) -> None:
+        self._info_atualizacao = info
+        self.lbl_atualizacao.config(
+            text=f"Nova versão disponível: v{info.versao_disponivel} "
+            f"(atual: v{info.versao_atual}) — clique para baixar"
+        )
+        self.lbl_atualizacao.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
+
+    def _abrir_link_atualizacao(self, evento: object = None) -> None:
+        if self._info_atualizacao is not None:
+            webbrowser.open(self._info_atualizacao.url_download)
 
 
 def main() -> int:
