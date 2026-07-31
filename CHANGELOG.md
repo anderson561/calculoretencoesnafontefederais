@@ -2,6 +2,18 @@
 
 Este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] — 2026-07-31
+
+### Adicionado
+- **Exclusão automática de nota substituída (`<NfseSubstituida>`).** Quando
+  o município reemite uma NFSe apontando qual nota original ela substitui
+  (ex.: Camaçari/BA) e ambas estiverem no mesmo lote processado, a nota
+  original é excluída do total, evitando duplicidade de retenção. `processar()`
+  passa a informar também a quantidade de notas excluídas por substituição;
+  CLI e GUI avisam quando isso ocorre. Cobre apenas a tag estruturada
+  ABRASF — não interpreta menções em texto livre (ex.: campo "Outras
+  Informações").
+
 ## [1.1.0] — 2026-07-31
 
 ### Adicionado
