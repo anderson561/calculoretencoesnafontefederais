@@ -23,7 +23,9 @@ from ..models import Nota
 from ..sanitizacao import classificar_tomador
 
 # Elementos que representam "uma nota". Preferimos o mais interno disponível.
-_ANCORAS_NOTA = ("infnfse", "infdeclaracaoprestacaoservico", "nfse")
+# "compnfse" cobre leiautes ABRASF "achatados" (ex.: Lauro de Freitas/BA) que
+# não têm o envelope <Nfse><InfNfse> — CompNfse já é o nível mais interno ali.
+_ANCORAS_NOTA = ("infnfse", "infdeclaracaoprestacaoservico", "nfse", "compnfse")
 
 # Nomes de tag (locais, exatos) do bloco do tomador/prestador.
 # ABRASF usa "Tomador"/"TomadorServico" e "Prestador"/"PrestadorServico"; o

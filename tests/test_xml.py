@@ -198,3 +198,78 @@ def test_ler_xml_abrasf_lote_com_varias_notas_do_mesmo_prestador(tmp_path: Path)
     assert nota2.irrf_informado == Decimal("36.47")
     assert nota2.crf_informado == Decimal("113.06")  # 15,80 + 72,94 + 24,32
     assert nota2.inss_informado == Decimal("0")
+
+
+# Amostra sintética (dados fictícios) no leiaute ABRASF "achatado" usado por
+# Lauro de Freitas/BA: <CompNfse> sem o envelope <Nfse><InfNfse> (Numero,
+# Servico, PrestadorServico e TomadorServico ficam direto dentro de
+# CompNfse), com 2+ notas do mesmo prestador para tomadores diferentes.
+XML_ABRASF_ACHATADO = """<?xml version='1.0' encoding='UTF-8'?>
+<ListaNfse>
+  <CompNfse>
+    <Numero>1001</Numero>
+    <DataEmissao>2026-07-09T09:48:31</DataEmissao>
+    <Servico>
+      <valores>
+        <valorServicos>1000.00</valorServicos>
+        <valorPis>0.00</valorPis>
+        <valorCofins>0.00</valorCofins>
+        <valorInss>110.00</valorInss>
+        <valorIr>0.00</valorIr>
+        <valorCsll>0.00</valorCsll>
+      </valores>
+    </Servico>
+    <PrestadorServico>
+      <IdentificacaoPrestador><Cnpj>45.723.174/0001-10</Cnpj></IdentificacaoPrestador>
+      <RazaoSocial>Prestador Exemplo Ltda</RazaoSocial>
+    </PrestadorServico>
+    <TomadorServico>
+      <identificacaoTomador><cpfCnpj><Cnpj>11.222.333/0001-81</Cnpj></cpfCnpj></identificacaoTomador>
+      <RazaoSocial>Tomador Exemplo Um Ltda</RazaoSocial>
+    </TomadorServico>
+  </CompNfse>
+  <CompNfse>
+    <Numero>1002</Numero>
+    <DataEmissao>2026-07-07T17:14:04</DataEmissao>
+    <Servico>
+      <valores>
+        <valorServicos>2000.00</valorServicos>
+        <valorPis>0.00</valorPis>
+        <valorCofins>0.00</valorCofins>
+        <valorInss>220.00</valorInss>
+        <valorIr>0.00</valorIr>
+        <valorCsll>0.00</valorCsll>
+      </valores>
+    </Servico>
+    <PrestadorServico>
+      <IdentificacaoPrestador><Cnpj>45.723.174/0001-10</Cnpj></IdentificacaoPrestador>
+      <RazaoSocial>Prestador Exemplo Ltda</RazaoSocial>
+    </PrestadorServico>
+    <TomadorServico>
+      <identificacaoTomador><cpfCnpj><Cnpj>02.931.604/0001-87</Cnpj></cpfCnpj></identificacaoTomador>
+      <RazaoSocial>Tomador Exemplo Dois S.A.</RazaoSocial>
+    </TomadorServico>
+  </CompNfse>
+</ListaNfse>
+"""
+
+
+def test_ler_xml_abrasf_achatado_sem_envelope_nfse_infnfse(tmp_path: Path):
+    arq = tmp_path / "achatado.xml"
+    arq.write_text(XML_ABRASF_ACHATADO, encoding="utf-8")
+
+    notas = ler_xml(arq)
+    # Sem esta âncora extra, o parser cairia no fallback [raiz] e leria o
+    # XML inteiro como uma única nota, perdendo a segunda.
+    assert len(notas) == 2
+
+    nota1, nota2 = notas
+    assert nota1.numero == "1001"
+    assert nota1.documento_tomador == "11222333000181"
+    assert nota1.inss_informado == Decimal("110.00")
+
+    assert nota2.numero == "1002"
+    assert nota2.documento_tomador == "02931604000187"
+    assert nota2.inss_informado == Decimal("220.00")
+
+    assert nota1.prestador_cnpj == nota2.prestador_cnpj == "45723174000110"
