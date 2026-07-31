@@ -2,6 +2,15 @@
 
 Este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.0.1] — 2026-07-31
+
+### Corrigido
+- **Leiaute ABRASF "achatado" (ex.: Lauro de Freitas/BA) não era reconhecido
+  como lote.** Municípios cujo `<CompNfse>` não tem o envelope
+  `<Nfse><InfNfse>` faziam o parser tratar o **lote inteiro como uma única
+  nota**, descartando silenciosamente as demais notas (e seus tomadores e
+  retenções). Adicionada âncora `compnfse` como fallback de detecção de nota.
+
 ## [1.0.0] — 2026-07-30
 
 Primeira versão estável. Encerra a fase inicial de validação contra XMLs reais
