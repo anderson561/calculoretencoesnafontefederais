@@ -2,6 +2,16 @@
 
 Este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] — 2026-07-31
+
+### Adicionado
+- **Aviso de nova versão disponível.** A GUI consulta em segundo plano
+  (sem travar a janela) a API de Releases do GitHub; se houver uma versão
+  mais nova que a instalada, mostra um link clicável que abre a página de
+  download no navegador. Não baixa nem instala nada sozinho. Se não houver
+  internet ou o GitHub estiver indisponível, falha em silêncio — o
+  aplicativo continua funcionando 100% offline.
+
 ## [1.0.1] — 2026-07-31
 
 ### Corrigido
