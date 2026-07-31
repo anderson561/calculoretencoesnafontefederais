@@ -52,6 +52,10 @@ _TAGS_COFINS_INFORMADO = ("vretcofins", "valorcofins")
 _TAGS_CSLL_INFORMADO = ("vretcsll", "valorcsll")
 _TAGS_INSS_INFORMADO = ("vretinss", "valorinss", "vretcp")
 
+# Número da nota substituída (ABRASF: <NfseSubstituida>), quando o município
+# reemite a NFSe cancelando/corrigindo uma anterior.
+_TAGS_NUMERO_SUBSTITUIDA = ("nfsesubstituida",)
+
 
 def _local(tag: object) -> str:
     """Nome local da tag, sem namespace e em minúsculas."""
@@ -149,6 +153,7 @@ def ler_xml(caminho: str | Path) -> list[Nota]:
                 crf_informado=_crf_informado(no),
                 inss_informado=_para_decimal_opt(_primeiro_texto(no, _TAGS_INSS_INFORMADO)),
                 origem=caminho.name,
+                numero_substituida=_primeiro_texto(no, _TAGS_NUMERO_SUBSTITUIDA),
             )
         )
     return notas

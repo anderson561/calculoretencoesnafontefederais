@@ -152,6 +152,12 @@ funciona normalmente.
     soma do dia atingir R$ 10,00, mantém o IRRF informado de cada nota; senão,
     dispensa (zera). Datas diferentes não somam; notas sem data são avaliadas
     isoladamente; notas sem IRRF informado nunca entram na soma.
+- **Nota substituída (`<NfseSubstituida>` do ABRASF):** quando o município
+  reemite uma NFSe cancelando/corrigindo outra, e **ambas** estiverem no
+  mesmo lote de entrada, a nota original é **excluída automaticamente** do
+  total (evita duplicidade). Só cobre a tag estruturada `NfseSubstituida`;
+  menções em texto livre (ex.: campo "Outras Informações") não são
+  interpretadas.
 - **XML Nacional (`sped.fazenda.gov.br/nfse`):** o tomador é lido de `<toma>` e
   o prestador de `<emit>`/`<prest>` — não confundir um com o outro (bug corrigido
   nesta versão: o parser antigo pegava o CNPJ do prestador quando o layout não

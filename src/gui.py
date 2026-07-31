@@ -183,19 +183,24 @@ class App(ttk.Frame):
         self, entrada: str, saida: str, parametros: ParametrosRetencao,
     ) -> None:
         try:
-            gerados, qtd = processar(entrada, saida, parametros)
+            gerados, qtd, qtd_substituidas = processar(entrada, saida, parametros)
         except Exception as exc:  # noqa: BLE001 — feedback amigável ao usuário
             self.master.after(0, self._falhou, exc)
         else:
-            self.master.after(0, self._concluiu, gerados, qtd)
+            self.master.after(0, self._concluiu, gerados, qtd, qtd_substituidas)
 
-    def _concluiu(self, gerados: list[Path], qtd: int) -> None:
+    def _concluiu(self, gerados: list[Path], qtd: int, qtd_substituidas: int) -> None:
         self.btn_gerar.config(state="normal")
         lista = "\n".join(str(c) for c in gerados)
         self.var_status.set(f"{qtd} nota(s) processada(s). {len(gerados)} arquivo(s) gerado(s).")
+        aviso_substituidas = (
+            f"\n\n{qtd_substituidas} nota(s) substituída(s) excluída(s) do total (evita duplicidade)."
+            if qtd_substituidas
+            else ""
+        )
         messagebox.showinfo(
             TITULO,
-            f"{qtd} nota(s) processada(s) com sucesso!\n\nArquivo(s) gerado(s):\n{lista}",
+            f"{qtd} nota(s) processada(s) com sucesso!\n\nArquivo(s) gerado(s):\n{lista}{aviso_substituidas}",
         )
 
     def _falhou(self, exc: Exception) -> None:

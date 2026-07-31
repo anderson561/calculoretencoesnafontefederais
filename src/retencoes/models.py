@@ -51,6 +51,11 @@ class Nota:
     # Origem do registro, útil para rastreabilidade e depuração.
     origem: Optional[str] = None
 
+    # Número da nota que esta substitui (ex.: <NfseSubstituida> do ABRASF),
+    # quando o município reemite uma NFSe cancelando/corrigindo outra. Usado
+    # para excluir a nota original do total e evitar duplicidade.
+    numero_substituida: Optional[str] = None
+
     @property
     def competencia(self) -> Optional[str]:
         """Competência (mês/ano) da nota, no formato 'MM/AAAA'."""

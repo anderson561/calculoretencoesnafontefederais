@@ -10,6 +10,30 @@ from .models import Cabecalho, Nota, NotaCalculada
 from .relatorios import exportar_pdf
 
 
+def remover_notas_substituidas(notas: list[Nota]) -> tuple[list[Nota], list[Nota]]:
+    """Exclui notas que foram substituídas por outra nota do mesmo prestador.
+
+    Algumas prefeituras reemitem a NFSe (ex.: ABRASF `<NfseSubstituida>`)
+    indicando o número da nota original que ela substitui. Se ambas as notas
+    (a original e a substituta) estiverem no mesmo lote de entrada, a
+    original deve ser excluída do total — senão a retenção seria contada em
+    duplicidade. Retorna ``(notas_mantidas, notas_excluidas)``.
+    """
+    substituidas = {
+        (n.prestador_cnpj, n.numero_substituida)
+        for n in notas
+        if n.numero_substituida
+    }
+    mantidas: list[Nota] = []
+    excluidas: list[Nota] = []
+    for n in notas:
+        if (n.prestador_cnpj, n.numero) in substituidas:
+            excluidas.append(n)
+        else:
+            mantidas.append(n)
+    return mantidas, excluidas
+
+
 def calcular_notas(
     notas: list[Nota],
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
@@ -48,14 +72,15 @@ def processar(
     entrada: str | Path,
     saida: str | Path,
     parametros: ParametrosRetencao = PARAMETROS_PADRAO,
-) -> tuple[list[Path], int]:
+) -> tuple[list[Path], int, int]:
     """Lê a entrada, calcula as retenções e exporta o relatório em PDF.
 
     O cabeçalho (prestador) é montado automaticamente a partir das notas.
-    Retorna ``(lista_de_arquivos_gerados, quantidade_de_notas)``.
+    Retorna ``(lista_de_arquivos_gerados, quantidade_de_notas, quantidade_de_notas_substituidas_excluidas)``.
     """
-    notas = ler_entrada(entrada)
+    todas_as_notas = ler_entrada(entrada)
+    notas, substituidas = remover_notas_substituidas(todas_as_notas)
     calculadas = calcular_notas(notas, parametros)
     cabecalho = montar_cabecalho(notas)
     gerados = exportar(calculadas, saida, cabecalho)
-    return gerados, len(calculadas)
+    return gerados, len(calculadas), len(substituidas)

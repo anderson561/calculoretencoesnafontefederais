@@ -58,12 +58,14 @@ def main(argv: list[str] | None = None) -> int:
 
     parametros = _construir_parametros(args)
     try:
-        gerados, qtd = processar(entrada, args.saida, parametros)
+        gerados, qtd, qtd_substituidas = processar(entrada, args.saida, parametros)
     except Exception as exc:  # noqa: BLE001 — CLI amigável ao usuário final
         print(f"[ERRO] Falha ao processar: {exc}", file=sys.stderr)
         return 1
 
     print(f"[OK] {qtd} nota(s) processada(s).")
+    if qtd_substituidas:
+        print(f"[OK] {qtd_substituidas} nota(s) substituída(s) excluída(s) do total (evita duplicidade).")
     for caminho in gerados:
         print(f"[OK] Relatório gerado em: {caminho.resolve()}")
     return 0
