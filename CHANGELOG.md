@@ -2,6 +2,18 @@
 
 Este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.0] — 2026-08-09
+
+### Alterado
+- **Mínimo de dispensa (R$ 10,00) deixou de ser configurável.** Removido o
+  campo "Mínimo p/ retenção" da GUI e a opção `--minimo` do CLI — o valor é
+  fixo (definido em lei), evitando alteração acidental por operador.
+- **Campo "Salvar relatório em" agora nasce vazio e é obrigatório.** O botão
+  "Gerar relatório" só é liberado depois que **Entrada** e **Saída**
+  estiverem ambos preenchidos (seja via diálogo ou digitação manual),
+  eliminando o antigo comportamento de gerar com um caminho padrão
+  pré-preenchido sem o usuário escolher explicitamente.
+
 ## [1.2.0] — 2026-07-31
 
 ### Adicionado
