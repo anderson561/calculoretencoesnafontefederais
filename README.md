@@ -68,8 +68,9 @@ powershell -ExecutionPolicy Bypass -File setup.ps1 -Dev
 ### Opção A — Interface gráfica (recomendada)
 Dê **duplo-clique** em `run.bat` (ou rode `run.ps1` pelo PowerShell).
 
-Na janela: selecione o **arquivo** (ou **pasta**) das notas, escolha onde salvar,
-ajuste os parâmetros se quiser e clique em **Gerar relatório**.
+Na janela: selecione o **arquivo** (ou **pasta**) das notas e escolha onde salvar
+o relatório — o botão **Gerar relatório** só é liberado depois que os dois
+campos estiverem preenchidos.
 
 ### Opção B — Linha de comando
 ```powershell
@@ -94,9 +95,9 @@ IRRF por dia**.
 
 ## Parâmetros do cálculo
 
-| CLI | GUI | Descrição | Default |
-|---|---|---|---|
-| `--minimo` | Mínimo p/ retenção | Dispensa abaixo desse valor | `10.00` |
+> O **mínimo de dispensa é fixo em R$ 10,00** (legislação federal) e não é
+> configurável pela GUI nem pelo CLI — evita alteração acidental de um valor
+> definido em lei.
 
 > A **identificação do prestador** não é digitada: é **extraída do XML** da NFSe
 > e exibida no cabeçalho. Em planilhas (sem prestador), o cabeçalho fica em branco.

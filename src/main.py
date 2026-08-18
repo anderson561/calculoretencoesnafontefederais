@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from decimal import Decimal
 from pathlib import Path
 
 # Permite executar tanto como módulo quanto como script solto (PyInstaller).
@@ -23,29 +22,18 @@ else:  # pragma: no cover
     from .retencoes.pipeline import processar
 
 
-def _construir_parametros(args: argparse.Namespace) -> ParametrosRetencao:
-    padrao = ParametrosRetencao()
-    return ParametrosRetencao(
-        valor_minimo_retencao=(
-            Decimal(str(args.minimo)) if args.minimo is not None
-            else padrao.valor_minimo_retencao
-        ),
-    )
-
-
 def montar_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description=(
             "Totaliza retenções federais (IRRF, CRF, INSS) de NFSe já informadas "
-            "no XML/planilha de origem — não aplica alíquota alguma."
+            "no XML/planilha de origem — não aplica alíquota alguma. Mínimo de "
+            "dispensa fixo em R$ 10,00 (legislação federal), não configurável."
         ),
     )
     p.add_argument("-e", "--entrada", required=True,
                    help="Arquivo (.xml/.csv/.xlsx) ou diretório com as notas.")
     p.add_argument("-s", "--saida", default="relatorios/retencoes.pdf",
                    help="Caminho do relatório em PDF (padrão: relatorios/retencoes.pdf).")
-    p.add_argument("--minimo", type=float,
-                   help="Valor mínimo de retenção; abaixo disso é dispensado (padrão 10.00).")
     return p
 
 
@@ -56,9 +44,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[ERRO] Entrada não encontrada: {entrada}", file=sys.stderr)
         return 2
 
-    parametros = _construir_parametros(args)
     try:
-        gerados, qtd, qtd_substituidas = processar(entrada, args.saida, parametros)
+        gerados, qtd, qtd_substituidas = processar(entrada, args.saida, ParametrosRetencao())
     except Exception as exc:  # noqa: BLE001 — CLI amigável ao usuário final
         print(f"[ERRO] Falha ao processar: {exc}", file=sys.stderr)
         return 1
